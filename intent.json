@@ -30,6 +30,12 @@
       "type": "http-route",
       "method": "GET",
       "path": "/health"
+    },
+    {
+      "id": "update-user",
+      "type": "http-route",
+      "method": "PUT",
+      "path": "/users/:id"
     }
   ]
 }
