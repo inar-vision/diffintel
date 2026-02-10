@@ -5,9 +5,15 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      propose_pr:
+        description: 'Create a fix PR if intent is out of sync'
+        type: boolean
+        default: true
 
 env:
-  INTENT_PROPOSE_PR: 'true'  # TODO: switch to ${{ vars.INTENT_PROPOSE_PR }} once repo variable is confirmed working
+  INTENT_PROPOSE_PR: ${{ inputs.propose_pr || 'true' }}
 
 permissions:
   contents: write
