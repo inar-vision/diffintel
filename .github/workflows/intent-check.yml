@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  INTENT_PROPOSE_PR: ${{ vars.INTENT_PROPOSE_PR }}
+  INTENT_PROPOSE_PR: 'true'  # TODO: switch to ${{ vars.INTENT_PROPOSE_PR }} once repo variable is confirmed working
 
 permissions:
   contents: write
