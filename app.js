@@ -27,6 +27,12 @@ app.post("/users", (req, res) => {
   res.status(201).json({ id: 3, name });
 });
 
+// Implemented: update-user
+app.put("/users/:id", (req, res) => {
+  const { name } = req.body;
+  res.json({ id: Number(req.params.id), name });
+});
+
 // Implemented: delete-user
 app.delete("/users/:id", (req, res) => {
   res.status(204).send();
