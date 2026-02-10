@@ -11,6 +11,24 @@ app.get("/users", (req, res) => {
   ]);
 });
 
+// Implemented: search-users
+app.get("/users/search", (req, res) => {
+  const { q } = req.query;
+  const users = [
+    { id: 1, name: "Alice" },
+    { id: 2, name: "Bob" },
+  ];
+  
+  if (q) {
+    const filtered = users.filter(user => 
+      user.name.toLowerCase().includes(q.toLowerCase())
+    );
+    res.json(filtered);
+  } else {
+    res.json(users);
+  }
+});
+
 // Implemented: get-user
 app.get("/users/:id", (req, res) => {
   res.json({ id: Number(req.params.id), name: "Alice" });
