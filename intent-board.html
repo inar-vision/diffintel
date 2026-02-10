@@ -68,7 +68,13 @@
     color: var(--text-dim);
   }
 
-  .settings-btn {
+  .header-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+  }
+
+  .settings-btn, .refresh-btn {
     background: var(--surface);
     border: 1px solid var(--border);
     color: var(--text-dim);
@@ -77,10 +83,9 @@
     cursor: pointer;
     font-size: 0.8rem;
     transition: all 0.15s;
-    margin-top: 0.25rem;
   }
 
-  .settings-btn:hover { border-color: #3a3f4f; color: var(--text); }
+  .settings-btn:hover, .refresh-btn:hover { border-color: #3a3f4f; color: var(--text); }
 
   .settings-panel {
     max-width: 960px;
@@ -135,10 +140,7 @@
     font-family: 'SF Mono', 'Fira Code', monospace;
   }
 
-  .setting-row input:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
+  .setting-row input:focus { outline: none; border-color: var(--accent); }
 
   .setting-row .save-btn {
     background: var(--accent);
@@ -170,9 +172,21 @@
 
   .saved-indicator.show { opacity: 1; }
 
+  .source-indicator {
+    max-width: 960px;
+    margin: 0.5rem auto 0;
+    padding: 0 2rem;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    opacity: 0.6;
+  }
+
+  .source-indicator a { color: var(--accent); text-decoration: none; }
+  .source-indicator a:hover { text-decoration: underline; }
+
   .sync-banner {
     max-width: 960px;
-    margin: 1rem auto 0;
+    margin: 0.75rem auto 0;
     padding: 0 2rem;
   }
 
@@ -198,6 +212,12 @@
     color: var(--missing);
   }
 
+  .sync-banner-inner.loading {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+
   .sync-banner-inner .sync-dot {
     width: 8px;
     height: 8px;
@@ -207,6 +227,7 @@
 
   .all-synced .sync-dot { background: var(--synced); }
   .out-of-sync .sync-dot { background: var(--missing); animation: pulse 2s infinite; }
+  .loading .sync-dot { background: var(--text-dim); animation: pulse 1s infinite; }
 
   @keyframes pulse {
     0%, 100% { opacity: 1; }
@@ -246,14 +267,10 @@
     color: var(--text-dim);
   }
 
-  .trigger-status a {
-    color: var(--accent);
-    text-decoration: none;
-  }
-
+  .trigger-status a { color: var(--accent); text-decoration: none; }
   .trigger-status a:hover { text-decoration: underline; }
 
-  .no-report {
+  .no-config {
     background: var(--surface);
     border: 1px solid var(--border);
     color: var(--text-dim);
@@ -276,11 +293,7 @@
     text-align: center;
   }
 
-  .stat .number {
-    font-size: 1.75rem;
-    font-weight: 700;
-    line-height: 1;
-  }
+  .stat .number { font-size: 1.75rem; font-weight: 700; line-height: 1; }
 
   .stat .label {
     font-size: 0.7rem;
@@ -315,11 +328,7 @@
     cursor: default;
   }
 
-  .card:hover {
-    background: var(--surface-hover);
-    border-color: #3a3f4f;
-  }
-
+  .card:hover { background: var(--surface-hover); border-color: #3a3f4f; }
   .card.status-missing { border-left: 3px solid var(--missing); }
   .card.status-synced { border-left: 3px solid var(--synced); }
   .card.status-extra { border-left: 3px solid var(--extra); }
@@ -444,9 +453,7 @@
     display: none;
   }
 
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
+  @keyframes spin { to { transform: rotate(360deg); } }
 
   .spinner {
     display: inline-block;
@@ -459,6 +466,67 @@
     margin-right: 0.35rem;
     vertical-align: middle;
   }
+
+  .pr-section {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 0 2rem;
+  }
+
+  .pr-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 10px;
+    padding: 0.85rem 1.25rem;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .pr-card .pr-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+
+  .pr-card .pr-body { flex: 1; }
+
+  .pr-card .pr-title {
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+
+  .pr-card .pr-meta {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    margin-top: 0.15rem;
+  }
+
+  .pr-card .pr-meta a { color: var(--accent); text-decoration: none; }
+  .pr-card .pr-meta a:hover { text-decoration: underline; }
+
+  .pr-label {
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.15rem 0.45rem;
+    border-radius: 3px;
+    background: #1e1a3a;
+    color: var(--accent);
+  }
+
+  .section-label {
+    max-width: 960px;
+    margin: 1rem auto 0.5rem;
+    padding: 0 2rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
 </style>
 </head>
 <body>
@@ -469,10 +537,13 @@
     <div class="meta">
       <span id="version"></span>
       <span id="feature-count"></span>
-      <span id="report-time"></span>
+      <span id="data-source"></span>
     </div>
   </div>
-  <button class="settings-btn" id="settings-toggle">Settings</button>
+  <div class="header-actions">
+    <button class="refresh-btn" id="refresh-btn" title="Refresh from GitHub">Refresh</button>
+    <button class="settings-btn" id="settings-toggle">Settings</button>
+  </div>
 </div>
 
 <div class="settings-panel" id="settings-panel">
@@ -488,11 +559,11 @@
     </div>
     <div class="setting-row">
       <label>Token</label>
-      <input type="password" id="cfg-token" placeholder="ghp_... (needs workflow scope)" />
+      <input type="password" id="cfg-token" placeholder="ghp_... (needs repo + workflow scopes)" />
     </div>
     <div class="setting-row">
       <label></label>
-      <button class="save-btn" id="cfg-save">Save to browser</button>
+      <button class="save-btn" id="cfg-save">Save & Reload</button>
       <span class="saved-indicator" id="cfg-saved">Saved</span>
     </div>
     <div class="setting-hint">
@@ -501,7 +572,9 @@
   </div>
 </div>
 
+<div class="source-indicator" id="source-indicator"></div>
 <div class="sync-banner" id="sync-banner"></div>
+<div class="pr-section" id="pr-section"></div>
 <div class="stats" id="stats"></div>
 <div class="filter-bar" id="filters"></div>
 <div class="board" id="board"></div>
@@ -509,18 +582,129 @@
 
 <script>
 const STORAGE_KEY = 'intent-board-config';
+const EXCLUDED_FILES = ['check-intent.js', 'propose-fix.js'];
+const ROUTE_PATTERN = /\b(?:app|router)\.(get|post|put|patch|delete|options|head)\(\s*["'`](\/[^"'`]*)["'`]/gi;
 
 function loadConfig() {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
-  } catch { return {}; }
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
+  catch { return {}; }
 }
 
 function saveConfig(cfg) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
 }
 
-// Settings panel
+function ghHeaders(token) {
+  return {
+    'Authorization': `Bearer ${token}`,
+    'Accept': 'application/vnd.github+json',
+  };
+}
+
+// --- GitHub API helpers ---
+
+async function fetchRepoContents(repo, branch, token, path = '') {
+  const url = `https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`;
+  const res = await fetch(url, { headers: ghHeaders(token) });
+  if (!res.ok) throw new Error(`GitHub API ${res.status}: ${path || '/'}`);
+  return res.json();
+}
+
+async function fetchFileContent(repo, branch, token, path) {
+  const url = `https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`;
+  const res = await fetch(url, { headers: ghHeaders(token) });
+  if (!res.ok) throw new Error(`GitHub API ${res.status}: ${path}`);
+  const data = await res.json();
+  return atob(data.content);
+}
+
+async function fetchJsFiles(repo, branch, token, dir = '') {
+  const entries = await fetchRepoContents(repo, branch, token, dir);
+  const files = [];
+  for (const entry of entries) {
+    if (entry.type === 'dir' && entry.name !== 'node_modules' && entry.name !== '.git' && entry.name !== 'future-plans') {
+      files.push(...await fetchJsFiles(repo, branch, token, entry.path));
+    } else if (entry.type === 'file' && (entry.name.endsWith('.js') || entry.name.endsWith('.ts')) && !EXCLUDED_FILES.includes(entry.name)) {
+      files.push(entry.path);
+    }
+  }
+  return files;
+}
+
+async function fetchOpenPRs(repo, token) {
+  const url = `https://api.github.com/repos/${repo}/pulls?state=open&labels=intent-generated&per_page=10`;
+  const res = await fetch(url, { headers: ghHeaders(token) });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+async function getLatestRun(repo, token) {
+  const url = `https://api.github.com/repos/${repo}/actions/workflows/intent-check.yml/runs?per_page=1`;
+  const res = await fetch(url, { headers: ghHeaders(token) });
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.workflow_runs?.[0] || null;
+}
+
+async function triggerWorkflow(cfg) {
+  const url = `https://api.github.com/repos/${cfg.repo}/actions/workflows/intent-check.yml/dispatches`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: ghHeaders(cfg.token),
+    body: JSON.stringify({ ref: cfg.branch, inputs: { propose_pr: 'true' } }),
+  });
+  if (res.status === 204) return true;
+  const body = await res.json().catch(() => ({}));
+  throw new Error(body.message || `GitHub API returned ${res.status}`);
+}
+
+// --- Intent check logic (mirrors check-intent.js) ---
+
+function normalizePath(p) {
+  return p.replace(/:[^/]+/g, ':param');
+}
+
+function extractRoutes(fileName, content) {
+  const routes = [];
+  let match;
+  ROUTE_PATTERN.lastIndex = 0;
+  while ((match = ROUTE_PATTERN.exec(content)) !== null) {
+    routes.push({ method: match[1].toUpperCase(), path: match[2], file: fileName });
+  }
+  return routes;
+}
+
+function checkIntent(intent, implementedRoutes) {
+  const presentFeatures = [];
+  const missingFeatures = [];
+  const matchedRoutes = new Set();
+
+  for (const feature of intent.features) {
+    if (feature.type !== 'http-route') continue;
+    const normalizedExpected = normalizePath(feature.path);
+    const foundIndex = implementedRoutes.findIndex(
+      r => r.method === feature.method.toUpperCase() && normalizePath(r.path) === normalizedExpected
+    );
+    if (foundIndex !== -1) {
+      matchedRoutes.add(foundIndex);
+      presentFeatures.push({ id: feature.id, method: feature.method.toUpperCase(), path: feature.path, implementedIn: implementedRoutes[foundIndex].file });
+    } else {
+      missingFeatures.push({ id: feature.id, method: feature.method.toUpperCase(), path: feature.path });
+    }
+  }
+
+  const extraFeatures = [];
+  for (let i = 0; i < implementedRoutes.length; i++) {
+    if (!matchedRoutes.has(i)) {
+      extraFeatures.push({ method: implementedRoutes[i].method, path: implementedRoutes[i].path, implementedIn: implementedRoutes[i].file });
+    }
+  }
+
+  return { presentFeatures, missingFeatures, extraFeatures };
+}
+
+// --- Settings panel ---
+
 const settingsToggle = document.getElementById('settings-toggle');
 const settingsPanel = document.getElementById('settings-panel');
 const cfgRepo = document.getElementById('cfg-repo');
@@ -534,9 +718,7 @@ cfgRepo.value = config.repo || '';
 cfgBranch.value = config.branch || 'main';
 cfgToken.value = config.token || '';
 
-settingsToggle.addEventListener('click', () => {
-  settingsPanel.classList.toggle('visible');
-});
+settingsToggle.addEventListener('click', () => settingsPanel.classList.toggle('visible'));
 
 cfgSave.addEventListener('click', () => {
   saveConfig({
@@ -546,145 +728,165 @@ cfgSave.addEventListener('click', () => {
   });
   cfgSaved.classList.add('show');
   setTimeout(() => cfgSaved.classList.remove('show'), 2000);
+  loadBoard();
 });
 
-async function triggerWorkflow() {
-  const cfg = loadConfig();
-  if (!cfg.repo || !cfg.token) {
-    alert('Configure repo and token in Settings first.');
-    settingsPanel.classList.add('visible');
-    return null;
-  }
+document.getElementById('refresh-btn').addEventListener('click', () => loadBoard());
 
-  const url = `https://api.github.com/repos/${cfg.repo}/actions/workflows/intent-check.yml/dispatches`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${cfg.token}`,
-      'Accept': 'application/vnd.github+json',
-    },
-    body: JSON.stringify({
-      ref: cfg.branch,
-      inputs: { propose_pr: 'true' },
-    }),
-  });
+// --- Main board rendering ---
 
-  if (res.status === 204) return cfg.repo;
-  const body = await res.json().catch(() => ({}));
-  throw new Error(body.message || `GitHub API returned ${res.status}`);
-}
-
-async function getLatestRun(repo, token) {
-  const url = `https://api.github.com/repos/${repo}/actions/workflows/intent-check.yml/runs?per_page=1`;
-  const res = await fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Accept': 'application/vnd.github+json',
-    },
-  });
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.workflow_runs?.[0] || null;
-}
-
-(async function() {
+async function loadBoard() {
   const errorEl = document.getElementById('error');
+  const bannerEl = document.getElementById('sync-banner');
+  const statsEl = document.getElementById('stats');
+  const filtersEl = document.getElementById('filters');
+  const boardEl = document.getElementById('board');
+  const sourceEl = document.getElementById('source-indicator');
+  const prSectionEl = document.getElementById('pr-section');
 
-  let data;
-  try {
-    const res = await fetch('intent.json');
-    if (!res.ok) throw new Error(`Failed to load intent.json (${res.status})`);
-    data = await res.json();
-  } catch(e) {
-    errorEl.textContent = e.message;
-    errorEl.style.display = 'block';
-    return;
-  }
+  // Clear previous state
+  errorEl.style.display = 'none';
+  bannerEl.innerHTML = '';
+  statsEl.innerHTML = '';
+  filtersEl.innerHTML = '';
+  boardEl.innerHTML = '';
+  sourceEl.innerHTML = '';
+  prSectionEl.innerHTML = '';
 
-  let report = null;
-  try {
-    const res = await fetch('intent-report.json');
-    if (res.ok) report = await res.json();
-  } catch(e) {}
+  const cfg = loadConfig();
+  const useGitHub = cfg.repo && cfg.token;
 
-  const features = data.features || [];
-  const presentIds = new Set();
-  const missingIds = new Set();
-  const extraFeatures = [];
-  const implementedIn = {};
+  let intent, presentIds, missingIds, extraFeatures, implementedIn, presentFeatures, missingFeaturesList, openPRs = [];
 
-  if (report) {
-    for (const f of (report.presentFeatures || [])) {
-      presentIds.add(f.id);
-      if (f.implementedIn) implementedIn[f.id] = f.implementedIn;
+  if (useGitHub) {
+    // Show loading state
+    bannerEl.innerHTML = '<div class="sync-banner-inner loading"><span class="sync-dot"></span> <span class="spinner"></span> Loading from GitHub...</div>';
+    sourceEl.innerHTML = `Reading from <a href="https://github.com/${cfg.repo}/tree/${cfg.branch}" target="_blank">${cfg.repo}@${cfg.branch}</a>`;
+
+    try {
+      // Fetch intent.json from repo
+      const intentRaw = await fetchFileContent(cfg.repo, cfg.branch, cfg.token, 'intent.json');
+      intent = JSON.parse(intentRaw);
+
+      // Fetch all JS files and their contents
+      const jsFilePaths = await fetchJsFiles(cfg.repo, cfg.branch, cfg.token);
+      const allRoutes = [];
+      for (const filePath of jsFilePaths) {
+        const content = await fetchFileContent(cfg.repo, cfg.branch, cfg.token, filePath);
+        allRoutes.push(...extractRoutes(filePath, content));
+      }
+
+      // Run intent check
+      const result = checkIntent(intent, allRoutes);
+      presentFeatures = result.presentFeatures;
+      missingFeaturesList = result.missingFeatures;
+      extraFeatures = result.extraFeatures;
+
+      presentIds = new Set(presentFeatures.map(f => f.id));
+      missingIds = new Set(missingFeaturesList.map(f => f.id));
+      implementedIn = {};
+      for (const f of presentFeatures) {
+        if (f.implementedIn) implementedIn[f.id] = f.implementedIn;
+      }
+
+      // Fetch open intent-generated PRs
+      openPRs = await fetchOpenPRs(cfg.repo, cfg.token);
+
+    } catch(e) {
+      bannerEl.innerHTML = '';
+      errorEl.textContent = `GitHub: ${e.message}`;
+      errorEl.style.display = 'block';
+      return;
     }
-    for (const f of (report.missingFeatures || [])) missingIds.add(f.id);
-    for (const f of (report.extraFeatures || [])) extraFeatures.push(f);
+  } else {
+    // Fallback: local files
+    sourceEl.innerHTML = 'Reading from local files. <a href="#" id="open-settings">Configure GitHub</a> for live sync.';
+    document.getElementById('open-settings')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      settingsPanel.classList.add('visible');
+    });
+
+    try {
+      const res = await fetch('intent.json');
+      if (!res.ok) throw new Error(`Failed to load intent.json (${res.status})`);
+      intent = await res.json();
+    } catch(e) {
+      errorEl.textContent = e.message;
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    let report = null;
+    try {
+      const res = await fetch('intent-report.json');
+      if (res.ok) report = await res.json();
+    } catch(e) {}
+
+    presentIds = new Set();
+    missingIds = new Set();
+    extraFeatures = [];
+    implementedIn = {};
+
+    if (report) {
+      for (const f of (report.presentFeatures || [])) {
+        presentIds.add(f.id);
+        if (f.implementedIn) implementedIn[f.id] = f.implementedIn;
+      }
+      for (const f of (report.missingFeatures || [])) missingIds.add(f.id);
+      extraFeatures = report.extraFeatures || [];
+    }
   }
 
-  const hasReport = report !== null;
+  const features = intent.features || [];
+  const hasReport = useGitHub || presentIds.size > 0 || missingIds.size > 0;
 
   // Meta
-  document.getElementById('version').textContent = `v${data.version}`;
+  document.getElementById('version').textContent = `v${intent.version}`;
   document.getElementById('feature-count').textContent = `${features.length} features`;
-  if (report && report.timestamp) {
-    const t = new Date(report.timestamp);
-    document.getElementById('report-time').textContent = `checked ${t.toLocaleString()}`;
-  }
+  document.getElementById('data-source').textContent = useGitHub ? 'live' : 'local';
 
   // Sync banner
-  const bannerEl = document.getElementById('sync-banner');
-  if (hasReport) {
-    const numMissing = missingIds.size;
-    const numExtra = extraFeatures.length;
-    const inSync = numMissing === 0 && numExtra === 0;
-    const inner = document.createElement('div');
-    inner.className = `sync-banner-inner ${inSync ? 'all-synced' : 'out-of-sync'}`;
+  bannerEl.innerHTML = '';
+  const numMissing = missingIds.size;
+  const numExtra = extraFeatures.length;
+  const inSync = hasReport && numMissing === 0 && numExtra === 0;
 
-    if (inSync) {
-      inner.innerHTML = `<span class="sync-dot"></span> All features are in sync`;
-    } else {
-      const parts = [];
-      if (numMissing > 0) parts.push(`${numMissing} missing`);
-      if (numExtra > 0) parts.push(`${numExtra} extra`);
-      inner.innerHTML = `
-        <span class="sync-dot"></span> Out of sync: ${parts.join(', ')}
-        <span class="sync-actions">
-          <span class="trigger-status" id="trigger-status"></span>
-          <button class="trigger-btn" id="trigger-btn">Fix with AI</button>
-        </span>`;
-    }
-    bannerEl.appendChild(inner);
+  const inner = document.createElement('div');
+  if (!hasReport) {
+    inner.className = 'sync-banner-inner no-config';
+    inner.innerHTML = '<span class="sync-dot" style="background:var(--text-dim)"></span> No sync data available';
+  } else if (inSync) {
+    inner.className = 'sync-banner-inner all-synced';
+    inner.innerHTML = '<span class="sync-dot"></span> All features are in sync';
   } else {
-    const inner = document.createElement('div');
-    inner.className = 'sync-banner-inner no-report';
-    inner.innerHTML = `<span class="sync-dot" style="background:var(--text-dim)"></span>
-      No sync report available
+    inner.className = 'sync-banner-inner out-of-sync';
+    const parts = [];
+    if (numMissing > 0) parts.push(`${numMissing} missing`);
+    if (numExtra > 0) parts.push(`${numExtra} extra`);
+    inner.innerHTML = `
+      <span class="sync-dot"></span> Out of sync: ${parts.join(', ')}
       <span class="sync-actions">
         <span class="trigger-status" id="trigger-status"></span>
-        <button class="trigger-btn" id="trigger-btn">Run Intent Check</button>
+        <button class="trigger-btn" id="trigger-btn">Fix with AI</button>
       </span>`;
-    bannerEl.appendChild(inner);
   }
+  bannerEl.appendChild(inner);
 
   // Wire up trigger button
   const triggerBtn = document.getElementById('trigger-btn');
   const triggerStatus = document.getElementById('trigger-status');
 
-  if (triggerBtn) {
+  if (triggerBtn && useGitHub) {
     triggerBtn.addEventListener('click', async () => {
       triggerBtn.disabled = true;
       triggerBtn.innerHTML = '<span class="spinner"></span>Triggering...';
       triggerStatus.textContent = '';
-
       try {
-        const repo = await triggerWorkflow();
+        await triggerWorkflow(cfg);
         triggerBtn.textContent = 'Triggered!';
         triggerBtn.classList.add('running');
+        triggerStatus.innerHTML = 'Waiting for run...';
 
-        // Poll for the run to appear
-        triggerStatus.innerHTML = 'Waiting for run to start...';
-        const cfg = loadConfig();
         let attempts = 0;
         const poll = setInterval(async () => {
           attempts++;
@@ -692,10 +894,7 @@ async function getLatestRun(repo, token) {
             const run = await getLatestRun(cfg.repo, cfg.token);
             if (run && run.status !== 'completed' && new Date(run.created_at) > new Date(Date.now() - 60000)) {
               clearInterval(poll);
-              const runUrl = run.html_url;
-              triggerStatus.innerHTML = `<span class="spinner"></span> Running... <a href="${runUrl}" target="_blank">View on GitHub</a>`;
-
-              // Keep polling until complete
+              triggerStatus.innerHTML = `<span class="spinner"></span> Running... <a href="${run.html_url}" target="_blank">View</a>`;
               const pollComplete = setInterval(async () => {
                 const updated = await getLatestRun(cfg.repo, cfg.token);
                 if (updated && updated.status === 'completed') {
@@ -703,19 +902,21 @@ async function getLatestRun(repo, token) {
                   const icon = updated.conclusion === 'success' ? '&#10003;' : '&#10007;';
                   const color = updated.conclusion === 'success' ? 'var(--synced)' : 'var(--missing)';
                   triggerStatus.innerHTML = `<span style="color:${color}">${icon}</span> ${updated.conclusion} &mdash; <a href="${updated.html_url}" target="_blank">View run</a>`;
-                  triggerBtn.textContent = 'Run again';
+                  triggerBtn.textContent = 'Refresh board';
                   triggerBtn.disabled = false;
                   triggerBtn.classList.remove('running');
+                  triggerBtn.onclick = () => loadBoard();
                 }
               }, 5000);
             }
           } catch(e) {}
           if (attempts > 12) {
             clearInterval(poll);
-            triggerStatus.innerHTML = `Check <a href="https://github.com/${cfg.repo}/actions" target="_blank">GitHub Actions</a>`;
-            triggerBtn.textContent = 'Run again';
+            triggerStatus.innerHTML = `Check <a href="https://github.com/${cfg.repo}/actions" target="_blank">Actions</a>`;
+            triggerBtn.textContent = 'Refresh board';
             triggerBtn.disabled = false;
             triggerBtn.classList.remove('running');
+            triggerBtn.onclick = () => loadBoard();
           }
         }, 3000);
       } catch(e) {
@@ -724,10 +925,34 @@ async function getLatestRun(repo, token) {
         triggerBtn.disabled = false;
       }
     });
+  } else if (triggerBtn && !useGitHub) {
+    triggerBtn.addEventListener('click', () => {
+      settingsPanel.classList.add('visible');
+    });
+  }
+
+  // Open PRs section
+  if (openPRs.length > 0) {
+    const label = document.createElement('div');
+    label.className = 'section-label';
+    label.textContent = 'Pending Fix PRs';
+    prSectionEl.appendChild(label);
+
+    for (const pr of openPRs) {
+      const card = document.createElement('div');
+      card.className = 'pr-card';
+      card.innerHTML = `
+        <span class="pr-icon">&#9741;</span>
+        <div class="pr-body">
+          <div class="pr-title">${pr.title} <span class="pr-label">draft</span></div>
+          <div class="pr-meta">#${pr.number} opened ${new Date(pr.created_at).toLocaleDateString()} &mdash; <a href="${pr.html_url}" target="_blank">View on GitHub</a></div>
+        </div>
+      `;
+      prSectionEl.appendChild(card);
+    }
   }
 
   // Stats
-  const statsEl = document.getElementById('stats');
   if (hasReport) {
     const statEntries = [
       { label: 'Total', value: features.length, cls: '' },
@@ -744,11 +969,7 @@ async function getLatestRun(repo, token) {
   } else {
     const methods = {};
     for (const f of features) methods[f.method] = (methods[f.method] || 0) + 1;
-    const statEntries = [
-      { label: 'Total', value: features.length },
-      ...Object.entries(methods).map(([m, c]) => ({ label: m, value: c }))
-    ];
-    for (const s of statEntries) {
+    for (const s of [{ label: 'Total', value: features.length }, ...Object.entries(methods).map(([m, c]) => ({ label: m, value: c }))]) {
       const div = document.createElement('div');
       div.className = 'stat';
       div.innerHTML = `<div class="number">${s.value}</div><div class="label">${s.label}</div>`;
@@ -756,7 +977,7 @@ async function getLatestRun(repo, token) {
     }
   }
 
-  // Build combined feature list
+  // Build cards
   const allCards = features.map(f => {
     let status = 'unknown';
     if (hasReport) status = presentIds.has(f.id) ? 'synced' : 'missing';
@@ -767,24 +988,21 @@ async function getLatestRun(repo, token) {
   }
 
   // Filters
-  const filtersEl = document.getElementById('filters');
   let activeMethodFilter = 'ALL';
   let activeStatusFilter = 'ALL';
-
   const methods = {};
   for (const f of features) methods[f.method] = (methods[f.method] || 0) + 1;
   const allMethods = ['ALL', ...Object.keys(methods)];
   const statusFilters = hasReport ? ['ALL', 'SYNCED', 'MISSING', 'EXTRA'] : [];
 
   function renderCards() {
-    const board = document.getElementById('board');
-    board.innerHTML = '';
+    boardEl.innerHTML = '';
     let filtered = allCards;
     if (activeMethodFilter !== 'ALL') filtered = filtered.filter(f => f.method === activeMethodFilter);
     if (activeStatusFilter !== 'ALL') filtered = filtered.filter(f => f.status === activeStatusFilter.toLowerCase());
 
     if (filtered.length === 0) {
-      board.innerHTML = '<div class="empty">No features match this filter.</div>';
+      boardEl.innerHTML = '<div class="empty">No features match this filter.</div>';
       return;
     }
 
@@ -799,7 +1017,6 @@ async function getLatestRun(repo, token) {
       const pillLabel = f.status === 'synced' ? 'synced' : f.status === 'missing' ? 'missing' : f.status === 'extra' ? 'extra' : '';
       const statusHtml = hasReport && pillLabel ? `<span class="status-pill ${pillClass}">${pillLabel}</span>` : '';
       const fileHtml = f.file ? `<div class="card-file">${f.file}</div>` : '';
-
       card.innerHTML = `
         <span class="method-badge method-${f.method}">${f.method}</span>
         <div class="card-body">
@@ -807,9 +1024,9 @@ async function getLatestRun(repo, token) {
           <div class="card-path">${pathHtml}</div>
           ${fileHtml}
         </div>
-        <span class="card-type">${f.type}</span>
+        <span class="card-type">${f.type || 'http-route'}</span>
       `;
-      board.appendChild(card);
+      boardEl.appendChild(card);
     }
   }
 
@@ -845,7 +1062,10 @@ async function getLatestRun(repo, token) {
   }
 
   renderCards();
-})();
+}
+
+// Initial load
+loadBoard();
 </script>
 </body>
 </html>
