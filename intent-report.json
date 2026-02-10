@@ -1,12 +1,12 @@
 {
   "version": "0.1",
   "intentFile": "intent.json",
-  "timestamp": "2026-02-10T21:14:32.670Z",
+  "timestamp": "2026-02-10T21:43:11.549Z",
   "summary": {
     "totalDeclared": 6,
-    "totalImplemented": 5,
-    "present": 5,
-    "missing": 1,
+    "totalImplemented": 6,
+    "present": 6,
+    "missing": 0,
     "extra": 0
   },
   "presentFeatures": [
@@ -39,14 +39,14 @@
       "method": "GET",
       "path": "/health",
       "implementedIn": "app.js"
-    }
-  ],
-  "missingFeatures": [
+    },
     {
       "id": "update-user",
       "method": "PUT",
-      "path": "/users/:id"
+      "path": "/users/:id",
+      "implementedIn": "app.js"
     }
   ],
+  "missingFeatures": [],
   "extraFeatures": []
 }
