@@ -229,7 +229,9 @@ async function main() {
     missingFeatures: report.missingFeatures.map((f) => f.id),
   };
 
-  console.log(JSON.stringify(summary));
+  // Write summary to apply-result.json for CI consumption
+  fs.writeFileSync("apply-result.json", JSON.stringify(summary, null, 2), "utf-8");
+  console.error("Apply result written to apply-result.json");
 }
 
 main().catch((err) => {
