@@ -582,8 +582,6 @@
 
 <script>
 const STORAGE_KEY = 'intent-board-config';
-const EXCLUDED_FILES = ['check-intent.js', 'propose-fix.js'];
-const ROUTE_PATTERN = /\b(?:app|router)\.(get|post|put|patch|delete|options|head)\(\s*["'`](\/[^"'`]*)["'`]/gi;
 
 function loadConfig() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; }
@@ -598,17 +596,11 @@ function ghHeaders(token) {
   return {
     'Authorization': `Bearer ${token}`,
     'Accept': 'application/vnd.github+json',
+    'If-None-Match': '',  // Bypass GitHub API cache
   };
 }
 
 // --- GitHub API helpers ---
-
-async function fetchRepoContents(repo, branch, token, path = '') {
-  const url = `https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`;
-  const res = await fetch(url, { headers: ghHeaders(token) });
-  if (!res.ok) throw new Error(`GitHub API ${res.status}: ${path || '/'}`);
-  return res.json();
-}
 
 async function fetchFileContent(repo, branch, token, path) {
   const url = `https://api.github.com/repos/${repo}/contents/${path}?ref=${branch}`;
@@ -616,19 +608,6 @@ async function fetchFileContent(repo, branch, token, path) {
   if (!res.ok) throw new Error(`GitHub API ${res.status}: ${path}`);
   const data = await res.json();
   return atob(data.content);
-}
-
-async function fetchJsFiles(repo, branch, token, dir = '') {
-  const entries = await fetchRepoContents(repo, branch, token, dir);
-  const files = [];
-  for (const entry of entries) {
-    if (entry.type === 'dir' && entry.name !== 'node_modules' && entry.name !== '.git' && entry.name !== 'future-plans') {
-      files.push(...await fetchJsFiles(repo, branch, token, entry.path));
-    } else if (entry.type === 'file' && (entry.name.endsWith('.js') || entry.name.endsWith('.ts')) && !EXCLUDED_FILES.includes(entry.name)) {
-      files.push(entry.path);
-    }
-  }
-  return files;
 }
 
 async function fetchOpenPRs(repo, token) {
@@ -656,51 +635,6 @@ async function triggerWorkflow(cfg) {
   if (res.status === 204) return true;
   const body = await res.json().catch(() => ({}));
   throw new Error(body.message || `GitHub API returned ${res.status}`);
-}
-
-// --- Intent check logic (mirrors check-intent.js) ---
-
-function normalizePath(p) {
-  return p.replace(/:[^/]+/g, ':param');
-}
-
-function extractRoutes(fileName, content) {
-  const routes = [];
-  let match;
-  ROUTE_PATTERN.lastIndex = 0;
-  while ((match = ROUTE_PATTERN.exec(content)) !== null) {
-    routes.push({ method: match[1].toUpperCase(), path: match[2], file: fileName });
-  }
-  return routes;
-}
-
-function checkIntent(intent, implementedRoutes) {
-  const presentFeatures = [];
-  const missingFeatures = [];
-  const matchedRoutes = new Set();
-
-  for (const feature of intent.features) {
-    if (feature.type !== 'http-route') continue;
-    const normalizedExpected = normalizePath(feature.path);
-    const foundIndex = implementedRoutes.findIndex(
-      r => r.method === feature.method.toUpperCase() && normalizePath(r.path) === normalizedExpected
-    );
-    if (foundIndex !== -1) {
-      matchedRoutes.add(foundIndex);
-      presentFeatures.push({ id: feature.id, method: feature.method.toUpperCase(), path: feature.path, implementedIn: implementedRoutes[foundIndex].file });
-    } else {
-      missingFeatures.push({ id: feature.id, method: feature.method.toUpperCase(), path: feature.path });
-    }
-  }
-
-  const extraFeatures = [];
-  for (let i = 0; i < implementedRoutes.length; i++) {
-    if (!matchedRoutes.has(i)) {
-      extraFeatures.push({ method: implementedRoutes[i].method, path: implementedRoutes[i].path, implementedIn: implementedRoutes[i].file });
-    }
-  }
-
-  return { presentFeatures, missingFeatures, extraFeatures };
 }
 
 // --- Settings panel ---
@@ -764,29 +698,37 @@ async function loadBoard() {
     sourceEl.innerHTML = `Reading from <a href="https://github.com/${cfg.repo}/tree/${cfg.branch}" target="_blank">${cfg.repo}@${cfg.branch}</a>`;
 
     try {
-      // Fetch intent.json from repo
+      // Fetch intent.json from main branch
       const intentRaw = await fetchFileContent(cfg.repo, cfg.branch, cfg.token, 'intent.json');
       intent = JSON.parse(intentRaw);
 
-      // Fetch all JS files and their contents
-      const jsFilePaths = await fetchJsFiles(cfg.repo, cfg.branch, cfg.token);
-      const allRoutes = [];
-      for (const filePath of jsFilePaths) {
-        const content = await fetchFileContent(cfg.repo, cfg.branch, cfg.token, filePath);
-        allRoutes.push(...extractRoutes(filePath, content));
+      // Fetch report from gh-pages branch (published by CI)
+      let report = null;
+      try {
+        const reportRaw = await fetchFileContent(cfg.repo, 'gh-pages', cfg.token, 'intent-report.json');
+        report = JSON.parse(reportRaw);
+      } catch(e) {
+        // gh-pages branch may not exist yet
       }
 
-      // Run intent check
-      const result = checkIntent(intent, allRoutes);
-      presentFeatures = result.presentFeatures;
-      missingFeaturesList = result.missingFeatures;
-      extraFeatures = result.extraFeatures;
-
-      presentIds = new Set(presentFeatures.map(f => f.id));
-      missingIds = new Set(missingFeaturesList.map(f => f.id));
+      presentIds = new Set();
+      missingIds = new Set();
+      extraFeatures = [];
       implementedIn = {};
-      for (const f of presentFeatures) {
-        if (f.implementedIn) implementedIn[f.id] = f.implementedIn;
+
+      if (report) {
+        for (const f of (report.presentFeatures || [])) {
+          presentIds.add(f.id);
+          if (f.implementedIn) implementedIn[f.id] = f.implementedIn;
+        }
+        for (const f of (report.missingFeatures || [])) missingIds.add(f.id);
+        extraFeatures = report.extraFeatures || [];
+
+        // Show report timestamp
+        if (report.timestamp) {
+          const t = new Date(report.timestamp);
+          sourceEl.innerHTML += ` &mdash; report from ${t.toLocaleString()}`;
+        }
       }
 
       // Fetch open intent-generated PRs
