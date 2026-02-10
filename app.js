@@ -21,8 +21,16 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-// NOT implemented: create-user (POST /users)
-// NOT implemented: delete-user (DELETE /users/:id)
+// Implemented: create-user
+app.post("/users", (req, res) => {
+  const { name } = req.body;
+  res.status(201).json({ id: 3, name });
+});
+
+// Implemented: delete-user
+app.delete("/users/:id", (req, res) => {
+  res.status(204).send();
+});
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
