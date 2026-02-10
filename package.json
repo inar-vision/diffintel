@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node app.js",
     "check": "node check-intent.js",
-    "propose": "node check-intent.js --out .intent-report.json; node propose-fix.js .intent-report.json"
+    "propose": "node check-intent.js --out .intent-report.json; node propose-fix.js .intent-report.json",
+    "propose:apply": "node check-intent.js --out .intent-report.json; node propose-fix.js --apply .intent-report.json"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
