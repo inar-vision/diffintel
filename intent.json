@@ -42,6 +42,12 @@
       "type": "http-route",
       "method": "GET",
       "path": "/users/search"
+    },
+    {
+      "id": "get-user-by-email",
+      "type": "http-route",
+      "method": "GET",
+      "path": "/users/email/:email"
     }
   ]
 }
