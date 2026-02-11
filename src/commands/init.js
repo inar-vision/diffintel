@@ -2,11 +2,16 @@ const fs = require("fs");
 const path = require("path");
 
 const STARTER_INTENT = {
-  version: "0.1",
+  version: "0.2",
+  meta: {
+    name: "my-project",
+  },
   features: [
     {
       id: "example-feature",
       type: "http-route",
+      description: "Example route - replace with your own",
+      status: "approved",
       method: "GET",
       path: "/example",
     },

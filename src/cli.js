@@ -42,6 +42,16 @@ program
   });
 
 program
+  .command("migrate")
+  .description("Migrate intent.json from v0.1 to v0.2 format")
+  .option("--intent <file>", "Path to intent file", "intent.json")
+  .action((opts) => {
+    const { run } = require("./commands/migrate");
+    const code = run(opts);
+    process.exit(code);
+  });
+
+program
   .command("propose <report>")
   .description("Generate a text proposal for missing features")
   .action(async (report) => {

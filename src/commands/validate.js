@@ -1,5 +1,6 @@
 const { loadConfig } = require("../config");
 const { loadIntent } = require("../core/intent");
+const { validateIntent, checkDuplicateIds } = require("../schema/validate");
 
 function run(options = {}) {
   const config = loadConfig({ intentFile: options.intent });
@@ -13,29 +14,19 @@ function run(options = {}) {
     return 1;
   }
 
-  const errors = [];
+  const result = validateIntent(intent);
+  const duplicates = checkDuplicateIds(intent);
 
-  if (!intent.version) {
-    errors.push("Missing 'version' field");
-  }
-
-  if (!intent.features || !Array.isArray(intent.features)) {
-    errors.push("Missing or invalid 'features' array");
-  } else {
-    for (let i = 0; i < intent.features.length; i++) {
-      const f = intent.features[i];
-      if (!f.id) errors.push(`features[${i}]: missing 'id'`);
-      if (!f.type) errors.push(`features[${i}]: missing 'type'`);
-      if (f.type === "http-route") {
-        if (!f.method) errors.push(`features[${i}]: missing 'method'`);
-        if (!f.path) errors.push(`features[${i}]: missing 'path'`);
-      }
+  const allErrors = [...result.errors];
+  if (duplicates.length > 0) {
+    for (const id of duplicates) {
+      allErrors.push(`Duplicate feature id: '${id}'`);
     }
   }
 
-  if (errors.length > 0) {
+  if (allErrors.length > 0) {
     console.error(`Validation errors in ${intentFile}:`);
-    for (const err of errors) {
+    for (const err of allErrors) {
       console.error(`  - ${err}`);
     }
     return 1;

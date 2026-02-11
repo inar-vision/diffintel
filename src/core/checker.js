@@ -28,10 +28,35 @@ function normalizePath(p) {
 function checkIntent(intent, implementedRoutes) {
   const presentFeatures = [];
   const missingFeatures = [];
+  const draftFeatures = [];
+  const deprecatedFeatures = [];
+  const unannotatedFeatures = [];
   const matchedRoutes = new Set();
 
   for (const feature of intent.features) {
-    if (feature.type !== "http-route") continue;
+    const status = feature.status || "approved";
+
+    // Non-http-route types have no analyzer yet — track them separately
+    if (feature.type !== "http-route") {
+      unannotatedFeatures.push({
+        id: feature.id,
+        type: feature.type,
+        status,
+        reason: `No analyzer available for type '${feature.type}'`,
+      });
+      continue;
+    }
+
+    // Draft features are informational only — not enforced
+    if (status === "draft") {
+      draftFeatures.push({
+        id: feature.id,
+        method: feature.method.toUpperCase(),
+        path: feature.path,
+        status,
+      });
+      continue;
+    }
 
     const normalizedExpected = normalizePath(feature.path);
     const foundIndex = implementedRoutes.findIndex(
@@ -42,17 +67,24 @@ function checkIntent(intent, implementedRoutes) {
 
     if (foundIndex !== -1) {
       matchedRoutes.add(foundIndex);
-      presentFeatures.push({
+      const entry = {
         id: feature.id,
         method: feature.method.toUpperCase(),
         path: feature.path,
         implementedIn: implementedRoutes[foundIndex].file,
-      });
+        status,
+      };
+
+      if (status === "deprecated") {
+        deprecatedFeatures.push(entry);
+      }
+      presentFeatures.push(entry);
     } else {
       missingFeatures.push({
         id: feature.id,
         method: feature.method.toUpperCase(),
         path: feature.path,
+        status,
       });
     }
   }
@@ -68,7 +100,14 @@ function checkIntent(intent, implementedRoutes) {
     }
   }
 
-  return { presentFeatures, missingFeatures, extraFeatures };
+  return {
+    presentFeatures,
+    missingFeatures,
+    extraFeatures,
+    draftFeatures,
+    deprecatedFeatures,
+    unannotatedFeatures,
+  };
 }
 
 module.exports = { ROUTE_PATTERN, extractRoutes, normalizePath, checkIntent };
