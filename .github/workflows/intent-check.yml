@@ -34,7 +34,7 @@ jobs:
       - name: Check intent coverage
         id: check
         continue-on-error: true
-        run: node check-intent.js --out intent-report.json
+        run: node src/cli.js check --out intent-report.json
 
       - name: Upload report artifact
         if: always()
@@ -84,7 +84,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           set +e
-          node propose-fix.js --apply intent-report.json
+          node src/cli.js apply intent-report.json
           EXIT_CODE=$?
           set -e
           if [ "$EXIT_CODE" -eq 0 ] && [ -f apply-result.json ]; then

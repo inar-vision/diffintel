@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npm install:*)",
       "Bash(node check-intent.js:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(node src/cli.js:*)"
     ]
   }
 }
