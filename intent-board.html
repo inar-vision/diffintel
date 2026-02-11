@@ -731,6 +731,14 @@ async function loadBoard() {
         }
       }
 
+      // Check for features in intent.json not covered by the report at all
+      // (added after the last CI run)
+      for (const f of (intent.features || [])) {
+        if (!presentIds.has(f.id) && !missingIds.has(f.id)) {
+          missingIds.add(f.id);
+        }
+      }
+
       // Fetch open intent-generated PRs
       openPRs = await fetchOpenPRs(cfg.repo, cfg.token);
 
@@ -776,6 +784,13 @@ async function loadBoard() {
       }
       for (const f of (report.missingFeatures || [])) missingIds.add(f.id);
       extraFeatures = report.extraFeatures || [];
+
+      // Check for features in intent.json not covered by the report
+      for (const f of (intent.features || [])) {
+        if (!presentIds.has(f.id) && !missingIds.has(f.id)) {
+          missingIds.add(f.id);
+        }
+      }
     }
   }
 

@@ -59,25 +59,25 @@ jobs:
       - name: Publish report to gh-pages
         if: always()
         run: |
+          # Use a separate directory to avoid corrupting the main workspace
+          REPORT_DIR=$(mktemp -d)
+          cp intent-report.json "$REPORT_DIR/intent-report.json"
+
+          cd "$REPORT_DIR"
+          git init
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # Save report before switching branches
-          cp intent-report.json /tmp/intent-report.json
-
-          # Create or switch to gh-pages branch (orphan if it doesn't exist)
-          git fetch origin gh-pages:gh-pages 2>/dev/null || git checkout --orphan gh-pages
-          git checkout gh-pages 2>/dev/null || true
-
-          # Clean working tree and add only the report
-          git rm -rf --ignore-unmatch . > /dev/null 2>&1
-          cp /tmp/intent-report.json intent-report.json
+          git checkout -b gh-pages
+          cp intent-report.json .
           git add intent-report.json
-          git commit -m "Update intent report [skip ci]" --allow-empty || true
+          git commit -m "Update intent report [skip ci]"
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
           git push origin gh-pages --force
 
-          # Return to original ref
-          git checkout - 2>/dev/null || true
+          # Return to the original workspace
+          cd "$GITHUB_WORKSPACE"
+          rm -rf "$REPORT_DIR"
 
       - name: Propose and apply fixes
         id: apply
