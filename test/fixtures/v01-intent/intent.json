@@ -1,0 +1,7 @@
+{
+  "version": "0.1",
+  "features": [
+    { "id": "list-users", "type": "http-route", "method": "GET", "path": "/users" },
+    { "id": "create-user", "type": "http-route", "method": "POST", "path": "/users" }
+  ]
+}

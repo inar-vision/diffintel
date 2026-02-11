@@ -1,0 +1,10 @@
+{
+  "version": "0.2",
+  "meta": { "name": "missing-routes" },
+  "features": [
+    { "id": "list-users", "type": "http-route", "status": "approved", "method": "GET", "path": "/users" },
+    { "id": "create-user", "type": "http-route", "status": "approved", "method": "POST", "path": "/users" },
+    { "id": "get-user", "type": "http-route", "status": "approved", "method": "GET", "path": "/users/:id" },
+    { "id": "health", "type": "http-route", "status": "approved", "method": "GET", "path": "/health" }
+  ]
+}

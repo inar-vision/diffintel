@@ -10,7 +10,8 @@
     "check": "node src/cli.js check",
     "propose": "node src/cli.js check --out .intent-report.json; node src/cli.js propose .intent-report.json",
     "propose:apply": "node src/cli.js check --out .intent-report.json; node src/cli.js apply .intent-report.json",
-    "board": "node src/cli.js check --out intent-report.json && npx serve ."
+    "board": "node src/cli.js check --out intent-report.json && npx serve .",
+    "test": "node --test test/unit/*.test.js test/integration/*.test.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
