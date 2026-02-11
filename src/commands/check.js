@@ -3,7 +3,14 @@ const { loadConfig } = require("../config");
 const { loadIntent } = require("../core/intent");
 const { findSourceFiles } = require("../core/scanner");
 const { createRunner } = require("../analyzers");
-const { buildReport, formatReport } = require("../report");
+const { buildReport, formatReport, diffReports, formatDiff } = require("../report");
+const { validateIntent } = require("../schema/validate");
+
+// Exit codes
+const EXIT_OK = 0;
+const EXIT_DRIFT = 1;
+const EXIT_VALIDATION_ERROR = 2;
+const EXIT_RUNTIME_ERROR = 3;
 
 function run(options = {}) {
   const config = loadConfig({
@@ -14,19 +21,43 @@ function run(options = {}) {
   const intentFile = config.intentFile;
   const scanDir = config.scanDir;
   const outFile = options.out || null;
+  const format = options.format || "text";
+  const diffFile = options.diff || null;
 
-  const intent = loadIntent(intentFile);
+  // Load and validate intent
+  let intent;
+  try {
+    intent = loadIntent(intentFile);
+  } catch (err) {
+    console.error(`Error: Failed to load ${intentFile}: ${err.message}`);
+    return EXIT_RUNTIME_ERROR;
+  }
+
+  const validation = validateIntent(intent);
+  if (!validation.valid) {
+    console.error(`Validation errors in ${intentFile}:`);
+    for (const err of validation.errors) {
+      console.error(`  - ${err}`);
+    }
+    return EXIT_VALIDATION_ERROR;
+  }
 
   // Create analyzer runner from config
   const runner = createRunner(config);
 
   // Scan files using extensions from all active analyzers
   const extensions = runner.getFileExtensions();
-  const files = findSourceFiles(scanDir, {
-    exclude: config.exclude,
-    extensions,
-    excludeFiles: ["check-intent.js", "propose-fix.js"],
-  });
+  let files;
+  try {
+    files = findSourceFiles(scanDir, {
+      exclude: config.exclude,
+      extensions,
+      excludeFiles: ["check-intent.js", "propose-fix.js"],
+    });
+  } catch (err) {
+    console.error(`Error: Failed to scan ${scanDir}: ${err.message}`);
+    return EXIT_RUNTIME_ERROR;
+  }
 
   // Run analyzers
   const implementations = runner.analyzeFiles(files);
@@ -40,8 +71,21 @@ function run(options = {}) {
     analyzers: runner.analyzers.map((a) => a.name),
   });
 
-  // Human-readable summary to stderr
-  console.error(formatReport(report, "text"));
+  // Human-readable summary to stderr (unless format is json-only)
+  if (format !== "json") {
+    console.error(formatReport(report, "text"));
+  }
+
+  // Diff mode
+  if (diffFile) {
+    try {
+      const previousReport = JSON.parse(fs.readFileSync(diffFile, "utf-8"));
+      const diff = diffReports(report, previousReport);
+      console.error(formatDiff(diff));
+    } catch (err) {
+      console.error(`Warning: Could not load diff file ${diffFile}: ${err.message}`);
+    }
+  }
 
   // Write to file if --out specified
   if (outFile) {
@@ -49,14 +93,16 @@ function run(options = {}) {
     console.error(`Report written to ${outFile}`);
   }
 
-  // Structured JSON to stdout
-  console.log(JSON.stringify(report, null, 2));
+  // Primary output to stdout
+  if (format === "json") {
+    console.log(JSON.stringify(report, null, 2));
+  } else if (format === "summary") {
+    console.log(formatReport(report, "summary"));
+  }
+  // text format already printed to stderr above
 
-  // Return exit code
-  return checkResult.missingFeatures.length > 0 ||
-    checkResult.extraFeatures.length > 0
-    ? 1
-    : 0;
+  // Exit code
+  return report.drift.hasDrift ? EXIT_DRIFT : EXIT_OK;
 }
 
-module.exports = { run };
+module.exports = { run, EXIT_OK, EXIT_DRIFT, EXIT_VALIDATION_ERROR, EXIT_RUNTIME_ERROR };

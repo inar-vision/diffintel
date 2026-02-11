@@ -12,9 +12,10 @@ program
   .command("check")
   .description("Check intent coverage against implemented code")
   .option("--out <file>", "Write report to file")
-  .option("--format <format>", "Output format: json or text", "json")
+  .option("--format <format>", "Output format: text, json, or summary")
   .option("--intent <file>", "Path to intent file")
   .option("--dir <dir>", "Directory to scan")
+  .option("--diff <file>", "Compare against a previous report")
   .action((opts) => {
     const { run } = require("./commands/check");
     const code = run(opts);
