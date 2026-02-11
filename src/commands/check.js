@@ -1,9 +1,8 @@
 const fs = require("fs");
-const path = require("path");
 const { loadConfig } = require("../config");
 const { loadIntent } = require("../core/intent");
 const { findSourceFiles } = require("../core/scanner");
-const { extractRoutes, checkIntent } = require("../core/checker");
+const { createRunner } = require("../analyzers");
 const { buildReport, formatReport } = require("../report");
 
 function run(options = {}) {
@@ -15,19 +14,30 @@ function run(options = {}) {
   const intentFile = config.intentFile;
   const scanDir = config.scanDir;
   const outFile = options.out || null;
-  const format = options.format || "json";
 
   const intent = loadIntent(intentFile);
+
+  // Create analyzer runner from config
+  const runner = createRunner(config);
+
+  // Scan files using extensions from all active analyzers
+  const extensions = runner.getFileExtensions();
   const files = findSourceFiles(scanDir, {
     exclude: config.exclude,
+    extensions,
     excludeFiles: ["check-intent.js", "propose-fix.js"],
   });
-  const implementedRoutes = extractRoutes(files);
-  const checkResult = checkIntent(intent, implementedRoutes);
+
+  // Run analyzers
+  const implementations = runner.analyzeFiles(files);
+
+  // Check features against implementations
+  const checkResult = runner.checkFeatures(intent, implementations);
 
   const report = buildReport(intent, checkResult, {
     intentFile,
-    totalImplemented: implementedRoutes.length,
+    totalImplemented: implementations.length,
+    analyzers: runner.analyzers.map((a) => a.name),
   });
 
   // Human-readable summary to stderr

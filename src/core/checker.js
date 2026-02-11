@@ -1,6 +1,24 @@
+// -----------------------------------------------------------------------
+// DEPRECATED — replaced by src/analyzers/ (Milestone 3)
+//
+// This was the original monolithic intent checker. The logic has been
+// split into:
+//   - src/analyzers/express-route.js  (route extraction + matching)
+//   - src/analyzers/index.js          (analyzer runner, feature dispatch)
+//
+// Kept as a reference for the matching algorithm. The normalizePath()
+// helper is still exported since reconcile/validator.js may use it.
+// -----------------------------------------------------------------------
+
+function normalizePath(p) {
+  return p.replace(/:[^/]+/g, ":param");
+}
+
+module.exports = { normalizePath };
+
+/*
 const fs = require("fs");
 
-// Patterns that register Express routes: app.get(...), router.post(...), etc.
 const ROUTE_PATTERN =
   /\b(?:app|router)\.(get|post|put|patch|delete|options|head)\(\s*["'`](\/[^"'`]*)["'`]/gi;
 
@@ -21,10 +39,6 @@ function extractRoutes(files) {
   return routes;
 }
 
-function normalizePath(p) {
-  return p.replace(/:[^/]+/g, ":param");
-}
-
 function checkIntent(intent, implementedRoutes) {
   const presentFeatures = [];
   const missingFeatures = [];
@@ -36,7 +50,6 @@ function checkIntent(intent, implementedRoutes) {
   for (const feature of intent.features) {
     const status = feature.status || "approved";
 
-    // Non-http-route types have no analyzer yet — track them separately
     if (feature.type !== "http-route") {
       unannotatedFeatures.push({
         id: feature.id,
@@ -47,7 +60,6 @@ function checkIntent(intent, implementedRoutes) {
       continue;
     }
 
-    // Draft features are informational only — not enforced
     if (status === "draft") {
       draftFeatures.push({
         id: feature.id,
@@ -109,5 +121,4 @@ function checkIntent(intent, implementedRoutes) {
     unannotatedFeatures,
   };
 }
-
-module.exports = { ROUTE_PATTERN, extractRoutes, normalizePath, checkIntent };
+*/

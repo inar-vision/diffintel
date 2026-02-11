@@ -13,8 +13,8 @@ program
   .description("Check intent coverage against implemented code")
   .option("--out <file>", "Write report to file")
   .option("--format <format>", "Output format: json or text", "json")
-  .option("--intent <file>", "Path to intent file", "intent.json")
-  .option("--dir <dir>", "Directory to scan", ".")
+  .option("--intent <file>", "Path to intent file")
+  .option("--dir <dir>", "Directory to scan")
   .action((opts) => {
     const { run } = require("./commands/check");
     const code = run(opts);
@@ -34,7 +34,7 @@ program
 program
   .command("validate")
   .description("Validate intent.json structure")
-  .option("--intent <file>", "Path to intent file", "intent.json")
+  .option("--intent <file>", "Path to intent file")
   .action((opts) => {
     const { run } = require("./commands/validate");
     const code = run(opts);
@@ -44,7 +44,7 @@ program
 program
   .command("migrate")
   .description("Migrate intent.json from v0.1 to v0.2 format")
-  .option("--intent <file>", "Path to intent file", "intent.json")
+  .option("--intent <file>", "Path to intent file")
   .action((opts) => {
     const { run } = require("./commands/migrate");
     const code = run(opts);
