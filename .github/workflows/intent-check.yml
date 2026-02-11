@@ -64,12 +64,10 @@ jobs:
           cp intent-report.json "$REPORT_DIR/intent-report.json"
 
           cd "$REPORT_DIR"
-          git init
+          git init -b gh-pages
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git checkout -b gh-pages
-          cp intent-report.json .
           git add intent-report.json
           git commit -m "Update intent report [skip ci]"
           git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
