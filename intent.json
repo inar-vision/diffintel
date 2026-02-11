@@ -44,6 +44,12 @@
       "path": "/users/search"
     },
     {
+      "id": "get-user-by-name",
+      "type": "http-route",
+      "method": "GET",
+      "path": "/users/name/:name"
+    },
+    {
       "id": "get-user-by-email",
       "type": "http-route",
       "method": "GET",
