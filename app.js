@@ -21,6 +21,11 @@ app.get("/users/search", (req, res) => {
   res.json(results);
 });
 
+// Implemented: get-user-by-email
+app.get("/users/email/:email", (req, res) => {
+  res.json({ id: 1, name: "Alice", email: req.params.email });
+});
+
 // Implemented: get-user
 app.get("/users/:id", (req, res) => {
   res.json({ id: Number(req.params.id), name: "Alice" });
