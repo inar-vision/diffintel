@@ -65,10 +65,11 @@ program
 program
   .command("apply <report>")
   .description("Auto-fix missing features using AI")
-  .action(async (report) => {
+  .option("--dry-run", "Show proposed changes without writing files")
+  .action(async (report, opts) => {
     require("dotenv").config();
     const { run } = require("./commands/apply");
-    const code = await run({ report });
+    const code = await run({ report, dryRun: opts.dryRun });
     process.exit(code);
   });
 

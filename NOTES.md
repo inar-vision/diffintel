@@ -35,6 +35,16 @@ already bitten us twice in the same session.
 
 ---
 
+## Default exclude directories
+
+The default scan excludes `node_modules`, `.git`, and `test`. The `test`
+exclusion was added in M5/M6 because test fixtures and unit tests contain
+route-like patterns (e.g. `app.get("/users")` in test strings) that
+produce false positives. This is a reasonable default — test code is not
+production routes. Users can override via `.intentrc.json` if needed.
+
+---
+
 ## Deprecated checker.js
 
 **File:** `src/core/checker.js`

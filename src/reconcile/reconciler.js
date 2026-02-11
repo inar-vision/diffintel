@@ -1,6 +1,6 @@
 const fs = require("fs");
 const Anthropic = require("@anthropic-ai/sdk");
-const { buildProposalPrompt, buildApplyPrompt } = require("./prompt-builder");
+const { buildProposalPrompt, buildApplyPrompt, SYSTEM_PROMPT } = require("./prompt-builder");
 const { stripMarkdownFences, validateApplyResult } = require("./validator");
 
 function collectSourceContext(presentFeatures) {
@@ -19,48 +19,81 @@ function collectSourceContext(presentFeatures) {
   return context;
 }
 
-function buildSections(report, sourceContext) {
+/**
+ * Extract missing and present features from either v0.1 or v0.2 report format.
+ */
+function extractFeatures(report) {
+  // v0.2 format: unified features array
+  if (report.features && Array.isArray(report.features)) {
+    const missing = report.features.filter((f) => f.result === "missing");
+    const present = report.features.filter((f) => f.result === "present");
+    return { missing, present };
+  }
+  // v0.1 format: separate arrays
+  return {
+    missing: report.missingFeatures || [],
+    present: report.presentFeatures || [],
+  };
+}
+
+function buildSections(missing, sourceContext) {
   const sourceSection = Object.entries(sourceContext)
     .map(([file, content]) => `### ${file}\n\`\`\`js\n${content}\n\`\`\``)
     .join("\n\n");
 
-  const missingSection = report.missingFeatures
+  const missingSection = missing
     .map((f) => `- ${f.id}: ${f.method} ${f.path}`)
     .join("\n");
 
   return { sourceSection, missingSection };
 }
 
+function extractTokenUsage(message) {
+  return {
+    input: message.usage?.input_tokens || 0,
+    output: message.usage?.output_tokens || 0,
+  };
+}
+
 async function propose(report) {
-  const sourceContext = collectSourceContext(report.presentFeatures || []);
-  const { sourceSection, missingSection } = buildSections(report, sourceContext);
-  const prompt = buildProposalPrompt(missingSection, sourceSection);
+  const { missing, present } = extractFeatures(report);
+  const sourceContext = collectSourceContext(present);
+  const { sourceSection, missingSection } = buildSections(missing, sourceContext);
+  const prompt = buildProposalPrompt(missingSection, sourceSection, report);
 
   const client = new Anthropic();
   const message = await client.messages.create({
     model: "claude-sonnet-4-5-20250929",
     max_tokens: 1024,
+    system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: prompt }],
   });
 
-  return message.content
+  const text = message.content
     .filter((block) => block.type === "text")
     .map((block) => block.text)
     .join("\n");
+
+  return { text, tokenUsage: extractTokenUsage(message) };
 }
 
-async function apply(report) {
-  const sourceContext = collectSourceContext(report.presentFeatures || []);
-  const { sourceSection, missingSection } = buildSections(report, sourceContext);
+async function apply(report, options = {}) {
+  const dryRun = options.dryRun || false;
+  const { missing, present } = extractFeatures(report);
+  const sourceContext = collectSourceContext(present);
+  const { sourceSection, missingSection } = buildSections(missing, sourceContext);
   const allowedFiles = Object.keys(sourceContext);
-  const prompt = buildApplyPrompt(missingSection, sourceSection, allowedFiles);
+  const prompt = buildApplyPrompt(missingSection, sourceSection, allowedFiles, report);
 
   const client = new Anthropic();
   const message = await client.messages.create({
     model: "claude-sonnet-4-5-20250929",
     max_tokens: 4096,
+    system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: prompt }],
   });
+
+  const tokenUsage = extractTokenUsage(message);
 
   const rawText = message.content
     .filter((block) => block.type === "text")
@@ -79,25 +112,30 @@ async function apply(report) {
     throw new Error(`Validation failed: ${validation.error}`);
   }
 
+  if (dryRun) {
+    return {
+      applied: false,
+      dryRun: true,
+      changedFiles: Object.keys(parsed),
+      proposedChanges: parsed,
+      missingFeatures: missing.map((f) => f.id),
+      tokenUsage,
+    };
+  }
+
+  // Write files
   const changedFiles = [];
   for (const [filePath, content] of Object.entries(parsed)) {
     fs.writeFileSync(filePath, content, "utf-8");
     changedFiles.push(filePath);
   }
 
-  const summary = {
+  return {
     applied: true,
     changedFiles,
-    missingFeatures: report.missingFeatures.map((f) => f.id),
+    missingFeatures: missing.map((f) => f.id),
+    tokenUsage,
   };
-
-  fs.writeFileSync(
-    "apply-result.json",
-    JSON.stringify(summary, null, 2),
-    "utf-8"
-  );
-
-  return summary;
 }
 
-module.exports = { collectSourceContext, propose, apply };
+module.exports = { collectSourceContext, extractFeatures, propose, apply };

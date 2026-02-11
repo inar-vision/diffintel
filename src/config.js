@@ -4,7 +4,7 @@ const path = require("path");
 const DEFAULTS = {
   intentFile: "intent.json",
   scanDir: ".",
-  exclude: ["node_modules", ".git"],
+  exclude: ["node_modules", ".git", "test"],
 };
 
 function loadConfig(overrides = {}) {

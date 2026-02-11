@@ -18,13 +18,21 @@ async function run(options = {}) {
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf-8"));
 
-  if (!report.missingFeatures || report.missingFeatures.length === 0) {
+  // Check for missing features in both v0.1 and v0.2 report formats
+  const missing = report.features
+    ? report.features.filter((f) => f.result === "missing")
+    : report.missingFeatures || [];
+
+  if (missing.length === 0) {
     console.log("All features implemented.");
     return 0;
   }
 
-  const text = await propose(report);
-  console.log(text);
+  const result = await propose(report);
+  console.log(result.text);
+  console.error(
+    `Token usage: ${result.tokenUsage.input} input, ${result.tokenUsage.output} output`
+  );
   return 0;
 }
 

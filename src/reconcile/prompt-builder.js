@@ -1,9 +1,36 @@
-function buildProposalPrompt(missingSection, sourceSection) {
+const SYSTEM_PROMPT = `You are an expert Express.js developer assisting with code generation.
+You must ONLY modify files explicitly listed as allowed.
+You must NOT modify intent.json or any configuration files.
+You must preserve ALL existing functionality — do not remove or break existing routes.
+Follow the patterns and conventions already present in the codebase.`;
+
+function buildIntentContext(report) {
+  const lines = [];
+  lines.push("## Intent specification context");
+  lines.push(`Intent version: ${report.meta?.intentVersion || report.version || "unknown"}`);
+
+  const features = report.features || [];
+  if (features.length > 0) {
+    lines.push("\nAll declared features:");
+    for (const f of features) {
+      const parts = [`- ${f.id} (${f.type})`, `status: ${f.status || "approved"}`];
+      if (f.method) parts.push(`${f.method} ${f.path}`);
+      if (f.result) parts.push(`result: ${f.result}`);
+      lines.push(parts.join(" | "));
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function buildProposalPrompt(missingSection, sourceSection, report) {
+  const intentContext = report ? buildIntentContext(report) : "";
+
   return `You are reviewing an Express.js application. The following features are declared in the intent specification but have NOT been implemented yet:
 
 ${missingSection}
 
-Here are the existing source files for context on patterns and style:
+${intentContext ? intentContext + "\n\n" : ""}Here are the existing source files for context on patterns and style:
 
 ${sourceSection}
 
@@ -15,12 +42,14 @@ Please write a plain-text proposal (not code) describing what changes are needed
 Keep the proposal concise and actionable.`;
 }
 
-function buildApplyPrompt(missingSection, sourceSection, allowedFiles) {
+function buildApplyPrompt(missingSection, sourceSection, allowedFiles, report) {
+  const intentContext = report ? buildIntentContext(report) : "";
+
   return `You are modifying an Express.js application. The following features are declared in the intent specification but have NOT been implemented yet:
 
 ${missingSection}
 
-Here are the existing source files:
+${intentContext ? intentContext + "\n\n" : ""}Here are the existing source files:
 
 ${sourceSection}
 
@@ -39,4 +68,4 @@ Example format:
 }`;
 }
 
-module.exports = { buildProposalPrompt, buildApplyPrompt };
+module.exports = { buildProposalPrompt, buildApplyPrompt, SYSTEM_PROMPT };
