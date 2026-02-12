@@ -43,7 +43,18 @@ function buildReport(intent: IntentDocument, checkResult: CheckResult, meta: { i
   // Build unified features array with result field
   const features: ReportFeature[] = [];
 
+  // Count contracts: features in intent that have a contract field and are present
+  const presentIds = new Set(presentFeatures.map(f => f.id));
+  const contractsChecked = intent.features.filter(
+    f => f.contract && Object.keys(f.contract).length > 0 && presentIds.has(f.id)
+  ).length;
+  let contractViolationCount = 0;
+
   for (const f of presentFeatures) {
+    if (f.contractViolations) {
+      contractViolationCount += f.contractViolations.length;
+    }
+
     features.push({
       id: f.id,
       type: f.type || "http-route",
@@ -54,6 +65,7 @@ function buildReport(intent: IntentDocument, checkResult: CheckResult, meta: { i
       ...(f.analyzer && { analyzer: f.analyzer }),
       ...(f.method && { method: f.method }),
       ...(f.path && { path: f.path }),
+      ...(f.contractViolations && { contractViolations: f.contractViolations }),
     });
   }
 
@@ -111,13 +123,16 @@ function buildReport(intent: IntentDocument, checkResult: CheckResult, meta: { i
       draft: draftFeatures.length,
       deprecated: deprecatedFeatures.length,
       complianceScore,
+      contractsChecked,
+      contractViolations: contractViolationCount,
     },
     features,
     extraFeatures,
     drift: {
-      hasDrift: missingFeatures.length > 0 || extraFeatures.length > 0,
+      hasDrift: missingFeatures.length > 0 || extraFeatures.length > 0 || contractViolationCount > 0,
       missingCount: missingFeatures.length,
       extraCount: extraFeatures.length,
+      contractViolationCount,
     },
   };
 }
@@ -130,7 +145,12 @@ function formatReport(report: Report, format: string = "text"): string {
   if (format === "summary") {
     const { summary, drift } = report;
     const status = drift.hasDrift ? "DRIFT" : "OK";
-    return `${status} | score: ${summary.complianceScore}% | present: ${summary.present} | missing: ${summary.missing} | extra: ${summary.extra}`;
+    let line = `${status} | score: ${summary.complianceScore}% | present: ${summary.present} | missing: ${summary.missing} | extra: ${summary.extra}`;
+    if (summary.contractsChecked > 0) {
+      const passing = summary.contractsChecked - summary.contractViolations;
+      line += ` | contracts: ${passing}/${summary.contractsChecked}`;
+    }
+    return line;
   }
 
   // Default: human-readable text
@@ -175,12 +195,31 @@ function formatReport(report: Report, format: string = "text"): string {
       `Deprecated:        ${colors.yellow(String(summary.deprecated))}`
     );
   }
+  if (summary.contractsChecked > 0) {
+    const passing = summary.contractsChecked - summary.contractViolations;
+    const contractStr = `${passing}/${summary.contractsChecked} passing`;
+    lines.push(
+      `Contracts:         ${summary.contractViolations > 0 ? colors.red(contractStr) : colors.green(contractStr)}`
+    );
+  }
 
   const missing = report.features.filter((f) => f.result === "missing");
   if (missing.length > 0) {
     lines.push(colors.red(`\nMissing features:`));
     for (const m of missing) {
       lines.push(`  - ${m.id} (${m.method} ${m.path})`);
+    }
+  }
+
+  const violations = report.features.filter(
+    (f) => f.contractViolations && f.contractViolations.length > 0
+  );
+  if (violations.length > 0) {
+    lines.push(colors.red(`\nContract violations:`));
+    for (const f of violations) {
+      for (const v of f.contractViolations!) {
+        lines.push(`  - ${f.id} (${f.method} ${f.path}) — ${v.contract}: expected ${v.expected}, actual ${v.actual}`);
+      }
     }
   }
 

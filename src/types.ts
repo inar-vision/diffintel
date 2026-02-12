@@ -10,6 +10,9 @@ export interface IntentFeature {
     status?: number;
     contentType?: string;
   };
+  contract?: {
+    auth?: "required" | "none";
+  };
 }
 
 export interface IntentDocument {
@@ -28,12 +31,20 @@ export interface Implementation {
   file: string;
   line?: number;
   analyzer?: string;
+  middleware?: string[];
+}
+
+export interface ContractViolation {
+  contract: string;
+  expected: string;
+  actual: string;
 }
 
 export interface MatchResult {
   found: boolean;
   implementedIn: string | null;
   line: number | null;
+  contractViolations?: ContractViolation[];
 }
 
 export interface Analyzer {
@@ -55,6 +66,7 @@ export interface ReportFeature {
   method?: string;
   path?: string;
   reason?: string;
+  contractViolations?: ContractViolation[];
 }
 
 export interface ExtraFeature {
@@ -75,6 +87,8 @@ export interface ReportSummary {
   draft: number;
   deprecated: number;
   complianceScore: number;
+  contractsChecked: number;
+  contractViolations: number;
 }
 
 export interface Report {
@@ -92,6 +106,7 @@ export interface Report {
     hasDrift: boolean;
     missingCount: number;
     extraCount: number;
+    contractViolationCount: number;
   };
 }
 
@@ -102,6 +117,9 @@ export interface Config {
   analyzers?: {
     include?: string[];
     custom?: string[];
+  };
+  contracts?: {
+    authMiddleware?: string[];
   };
 }
 
@@ -115,6 +133,7 @@ export interface CheckResult {
     line?: number;
     method?: string;
     path?: string;
+    contractViolations?: ContractViolation[];
   }>;
   missingFeatures: Array<{
     id: string;

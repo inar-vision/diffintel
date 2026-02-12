@@ -1,6 +1,6 @@
 import path from "path";
 import { Analyzer, Config, IntentDocument, Implementation, CheckResult } from "../types";
-import expressRouteAnalyzer from "./express-route";
+import createExpressAnalyzer from "./express-route";
 
 function loadCustomAnalyzers(customPaths: string[] = []): Analyzer[] {
   const analyzers: Analyzer[] = [];
@@ -34,7 +34,9 @@ function createRunner(config: Partial<Config> = {}): AnalyzerRunner {
   const includeList = analyzerConfig.include || null; // null = all
   const customPaths = analyzerConfig.custom || [];
 
-  const builtinAnalyzers: Analyzer[] = [expressRouteAnalyzer];
+  const builtinAnalyzers: Analyzer[] = [
+    createExpressAnalyzer({ authMiddleware: config.contracts?.authMiddleware }),
+  ];
 
   let analyzers = [...builtinAnalyzers];
 
@@ -146,6 +148,7 @@ function createRunner(config: Partial<Config> = {}): AnalyzerRunner {
               ...(result.line && { line: result.line }),
               ...(feature.method && { method: feature.method.toUpperCase() }),
               ...(feature.path && { path: feature.path }),
+              ...(result.contractViolations && { contractViolations: result.contractViolations }),
             };
 
             if (status === "deprecated") {

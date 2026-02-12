@@ -141,6 +141,43 @@ describe("check command — debug mode", () => {
   });
 });
 
+describe("check command — auth-contract fixture (no violations)", () => {
+  const fixtureDir = path.join(__dirname, "../fixtures/auth-contract");
+
+  it("all routes present, no violations, exit 0", () => {
+    const { stdout, exitCode } = runCheck(["--format", "json", "--intent", "intent.json", "--dir", "."], fixtureDir);
+    const report = JSON.parse(stdout);
+    assert.equal(exitCode, 0);
+    assert.equal(report.summary.present, 4);
+    assert.equal(report.summary.missing, 0);
+    assert.equal(report.summary.contractsChecked, 3);
+    assert.equal(report.summary.contractViolations, 0);
+    assert.equal(report.drift.hasDrift, false);
+    assert.equal(report.drift.contractViolationCount, 0);
+  });
+});
+
+describe("check command — auth-contract-violation fixture", () => {
+  const fixtureDir = path.join(__dirname, "../fixtures/auth-contract-violation");
+
+  it("auth required on route lacking middleware → exit 1, report shows violation", () => {
+    const { stdout, exitCode } = runCheck(["--format", "json", "--intent", "intent.json", "--dir", "."], fixtureDir);
+    const report = JSON.parse(stdout);
+    assert.equal(exitCode, 1);
+    assert.equal(report.summary.present, 2);
+    assert.equal(report.summary.missing, 0);
+    assert.equal(report.summary.contractViolations, 1);
+    assert.equal(report.drift.hasDrift, true);
+    assert.equal(report.drift.contractViolationCount, 1);
+    const admin = report.features.find((f: any) => f.id === "admin-dashboard");
+    assert.ok(admin.contractViolations);
+    assert.equal(admin.contractViolations.length, 1);
+    assert.equal(admin.contractViolations[0].contract, "auth");
+    assert.equal(admin.contractViolations[0].expected, "required");
+    assert.equal(admin.contractViolations[0].actual, "missing");
+  });
+});
+
 describe("check command — exit codes", () => {
   it("exit code 3 for missing intent file", () => {
     const { exitCode } = runCheck(["--intent", "nonexistent.json", "--format", "json"]);

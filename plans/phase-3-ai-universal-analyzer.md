@@ -1,6 +1,8 @@
 # Phase 3 — AI Universal Analyzer & Advanced Compliance
 
-> **Status**: Future — depends on Phase 2 for AST infrastructure and stable multi-framework patterns.
+> **Status**: In progress — Phase 2 complete. M1-M2 (AI Universal Analyzer) deferred; starting from M3.
+>
+> **Decision (Phase 2 retrospective):** M1-M2 are deferred indefinitely. Adding a non-deterministic AI analyzer at this stage risks undermining the core value proposition — deterministic, reproducible compliance checking that runs in CI without network access or API costs. AI already lives in the reconciliation layer (propose/apply) where non-determinism is acceptable. The priority is deepening what the deterministic AST engine can check (contracts, constraints) rather than broadening framework coverage via AI. M1-M2 may be revisited later as an opt-in Tier 2 fallback.
 
 ## Goal
 

@@ -6,6 +6,13 @@ const DEFAULTS: Config = {
   intentFile: "intent.json",
   scanDir: ".",
   exclude: ["node_modules", ".git", "test"],
+  contracts: {
+    authMiddleware: [
+      "authenticate", "requireAuth", "auth", "authMiddleware",
+      "requireLogin", "ensureAuthenticated", "isAuthenticated",
+      "protect", "verifyToken", "requireUser",
+    ],
+  },
 };
 
 function loadConfig(overrides: Partial<Config> = {}): Config {

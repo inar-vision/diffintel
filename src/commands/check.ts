@@ -129,6 +129,16 @@ function run(options: CheckOptions = {}): number {
     for (const f of checkResult.unannotatedFeatures) {
       console.error(`[debug]   UNANALYZABLE  ${f.id} — ${f.reason}`);
     }
+    for (const f of checkResult.presentFeatures) {
+      if (f.contractViolations) {
+        for (const v of f.contractViolations) {
+          console.error(
+            `[debug]   VIOLATION  ${f.id} ${f.method} ${f.path}` +
+            ` — contract.${v.contract}: expected ${v.expected}, actual ${v.actual}`
+          );
+        }
+      }
+    }
   }
 
   const report = buildReport(intent, checkResult, {

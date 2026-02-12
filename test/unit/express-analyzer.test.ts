@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import analyzer from "../../src/analyzers/express-route";
+import createAnalyzer from "../../src/analyzers/express-route";
+const analyzer = createAnalyzer();
 
 function withTempFile(content: string, fn: (file: string) => void, ext: string = ".js"): void {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "intent-test-"));

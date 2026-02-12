@@ -123,6 +123,85 @@ describe("formatReport", () => {
   });
 });
 
+describe("buildReport — contract violations", () => {
+  it("summary includes contractsChecked and contractViolations counts", () => {
+    const intent: IntentDocument = {
+      version: "0.2",
+      features: [
+        { id: "f1", type: "http-route", method: "GET", path: "/admin", contract: { auth: "required" } },
+        { id: "f2", type: "http-route", method: "GET", path: "/public", contract: { auth: "none" } },
+        { id: "f3", type: "http-route", method: "GET", path: "/health" },
+      ],
+    };
+    const checkResult: CheckResult = {
+      presentFeatures: [
+        { id: "f1", method: "GET", path: "/admin", implementedIn: "a.js", status: "approved",
+          contractViolations: [{ contract: "auth", expected: "required", actual: "missing" }] },
+        { id: "f2", method: "GET", path: "/public", implementedIn: "a.js", status: "approved" },
+        { id: "f3", method: "GET", path: "/health", implementedIn: "a.js", status: "approved" },
+      ],
+      missingFeatures: [],
+      extraFeatures: [],
+      draftFeatures: [],
+      deprecatedFeatures: [],
+      unannotatedFeatures: [],
+    };
+    const report = buildReport(intent, checkResult, {});
+    assert.equal(report.summary.contractsChecked, 2);
+    assert.equal(report.summary.contractViolations, 1);
+  });
+
+  it("features with violations include contractViolations array", () => {
+    const intent: IntentDocument = {
+      version: "0.2",
+      features: [
+        { id: "f1", type: "http-route", method: "GET", path: "/admin", contract: { auth: "required" } },
+      ],
+    };
+    const checkResult: CheckResult = {
+      presentFeatures: [
+        { id: "f1", method: "GET", path: "/admin", implementedIn: "a.js", status: "approved",
+          contractViolations: [{ contract: "auth", expected: "required", actual: "missing" }] },
+      ],
+      missingFeatures: [],
+      extraFeatures: [],
+      draftFeatures: [],
+      deprecatedFeatures: [],
+      unannotatedFeatures: [],
+    };
+    const report = buildReport(intent, checkResult, {});
+    const f = report.features.find(f => f.id === "f1");
+    assert.ok(f?.contractViolations);
+    assert.equal(f!.contractViolations!.length, 1);
+    assert.equal(f!.contractViolations![0].contract, "auth");
+  });
+
+  it("drift.hasDrift is true when contract violations exist but no missing routes", () => {
+    const intent: IntentDocument = {
+      version: "0.2",
+      features: [
+        { id: "f1", type: "http-route", method: "GET", path: "/admin", contract: { auth: "required" } },
+      ],
+    };
+    const checkResult: CheckResult = {
+      presentFeatures: [
+        { id: "f1", method: "GET", path: "/admin", implementedIn: "a.js", status: "approved",
+          contractViolations: [{ contract: "auth", expected: "required", actual: "missing" }] },
+      ],
+      missingFeatures: [],
+      extraFeatures: [],
+      draftFeatures: [],
+      deprecatedFeatures: [],
+      unannotatedFeatures: [],
+    };
+    const report = buildReport(intent, checkResult, {});
+    assert.equal(report.drift.hasDrift, true);
+    assert.equal(report.drift.contractViolationCount, 1);
+    assert.equal(report.drift.missingCount, 0);
+    assert.equal(report.drift.extraCount, 0);
+  });
+});
+
 describe("diffReports", () => {
   it("detects newly implemented features", () => {
     const previous = {

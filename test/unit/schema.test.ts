@@ -127,6 +127,48 @@ describe("Schema validation", () => {
     assert.deepEqual(dupes, ["f1"]);
   });
 
+  it("accepts http-route with contract auth required", () => {
+    const result = validateIntent({
+      version: "0.2",
+      features: [
+        { id: "f1", type: "http-route", method: "GET", path: "/admin", contract: { auth: "required" } },
+      ],
+    });
+    assert.equal(result.valid, true);
+    assert.equal(result.errors.length, 0);
+  });
+
+  it("accepts http-route with contract auth none", () => {
+    const result = validateIntent({
+      version: "0.2",
+      features: [
+        { id: "f1", type: "http-route", method: "GET", path: "/public", contract: { auth: "none" } },
+      ],
+    });
+    assert.equal(result.valid, true);
+    assert.equal(result.errors.length, 0);
+  });
+
+  it("rejects http-route with contract auth optional", () => {
+    const result = validateIntent({
+      version: "0.2",
+      features: [
+        { id: "f1", type: "http-route", method: "GET", path: "/test", contract: { auth: "optional" } },
+      ],
+    } as any);
+    assert.equal(result.valid, false);
+  });
+
+  it("accepts http-route without contract (backward compat)", () => {
+    const result = validateIntent({
+      version: "0.2",
+      features: [
+        { id: "f1", type: "http-route", method: "GET", path: "/test" },
+      ],
+    });
+    assert.equal(result.valid, true);
+  });
+
   it("returns empty for unique IDs", () => {
     const dupes = checkDuplicateIds({
       version: "0.2",
