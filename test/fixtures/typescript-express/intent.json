@@ -1,0 +1,10 @@
+{
+  "version": "0.2",
+  "meta": { "name": "typescript-express" },
+  "features": [
+    { "id": "list-users", "type": "http-route", "status": "approved", "method": "GET", "path": "/users" },
+    { "id": "get-user", "type": "http-route", "status": "approved", "method": "GET", "path": "/users/:id" },
+    { "id": "create-user", "type": "http-route", "status": "approved", "method": "POST", "path": "/users" },
+    { "id": "health", "type": "http-route", "status": "approved", "method": "GET", "path": "/health" }
+  ]
+}

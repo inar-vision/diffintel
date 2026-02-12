@@ -18,6 +18,11 @@ interface CheckOptions {
   out?: string;
   format?: string;
   diff?: string;
+  debug?: boolean;
+}
+
+function debugLog(debug: boolean, ...args: unknown[]) {
+  if (debug) console.error("[debug]", ...args);
 }
 
 function run(options: CheckOptions = {}): number {
@@ -31,6 +36,7 @@ function run(options: CheckOptions = {}): number {
   const outFile = options.out || null;
   const format = options.format || "text";
   const diffFile = options.diff || null;
+  const debug = options.debug || false;
 
   // Load and validate intent
   let intent;
@@ -53,8 +59,12 @@ function run(options: CheckOptions = {}): number {
   // Create analyzer runner from config
   const runner = createRunner(config);
 
+  debugLog(debug, `Analyzers: ${runner.analyzers.map((a) => a.name).join(", ")}`);
+
   // Scan files using extensions from all active analyzers
   const extensions = runner.getFileExtensions();
+  debugLog(debug, `File extensions: ${extensions.join(", ")}`);
+
   let files;
   try {
     files = findSourceFiles(scanDir, {
@@ -66,11 +76,60 @@ function run(options: CheckOptions = {}): number {
     return EXIT_RUNTIME_ERROR;
   }
 
+  debugLog(debug, `Scanned ${files.length} file(s) in ${scanDir}`);
+  if (debug) {
+    for (const f of files) {
+      console.error(`[debug]   ${f}`);
+    }
+  }
+
   // Run analyzers
   const implementations = runner.analyzeFiles(files);
 
+  debugLog(debug, `Found ${implementations.length} implementation(s)`);
+  if (debug) {
+    for (const impl of implementations) {
+      console.error(
+        `[debug]   ${impl.method} ${impl.path} — ${impl.file}:${impl.line || "?"}` +
+        ` (${impl.analyzer || "unknown"})`
+      );
+    }
+  }
+
   // Check features against implementations
   const checkResult = runner.checkFeatures(intent, implementations);
+
+  if (debug) {
+    debugLog(debug, `Feature results:`);
+    for (const f of checkResult.presentFeatures) {
+      console.error(
+        `[debug]   PRESENT  ${f.id}` +
+        (f.method ? ` ${f.method} ${f.path}` : "") +
+        ` — matched in ${f.implementedIn}:${f.line || "?"}` +
+        ` (${f.analyzer})`
+      );
+    }
+    for (const f of checkResult.missingFeatures) {
+      console.error(
+        `[debug]   MISSING  ${f.id}` +
+        (f.method ? ` ${f.method} ${f.path}` : "") +
+        ` — no matching implementation found`
+      );
+    }
+    for (const f of checkResult.extraFeatures) {
+      console.error(
+        `[debug]   EXTRA    ${f.method} ${f.path}` +
+        ` — ${f.implementedIn}:${f.line || "?"}` +
+        ` (${f.analyzer}) — not declared in intent`
+      );
+    }
+    for (const f of checkResult.draftFeatures) {
+      console.error(`[debug]   DRAFT    ${f.id} — skipped (draft status)`);
+    }
+    for (const f of checkResult.unannotatedFeatures) {
+      console.error(`[debug]   UNANALYZABLE  ${f.id} — ${f.reason}`);
+    }
+  }
 
   const report = buildReport(intent, checkResult, {
     intentFile,

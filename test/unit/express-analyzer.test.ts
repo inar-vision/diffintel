@@ -5,9 +5,9 @@ import path from "path";
 import os from "os";
 import analyzer from "../../src/analyzers/express-route";
 
-function withTempFile(content: string, fn: (file: string) => void): void {
+function withTempFile(content: string, fn: (file: string) => void, ext: string = ".js"): void {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "intent-test-"));
-  const file = path.join(dir, "test.js");
+  const file = path.join(dir, `test${ext}`);
   fs.writeFileSync(file, content);
   try {
     fn(file);
@@ -129,5 +129,84 @@ describe("Express route analyzer", () => {
     );
     assert.equal(result.found, false);
     assert.equal(result.implementedIn, null);
+  });
+
+  it("ignores route-like patterns inside comments", () => {
+    const content = [
+      '// app.get("/commented-out", handler);',
+      '/* router.post("/block-comment", handler); */',
+    ].join("\n");
+    withTempFile(content, (file) => {
+      const routes = analyzer.analyze([file]);
+      assert.equal(routes.length, 0);
+    });
+  });
+
+  it("ignores route-like patterns inside string literals", () => {
+    const content = 'const example = \'app.get("/not-a-route", handler);\';';
+    withTempFile(content, (file) => {
+      const routes = analyzer.analyze([file]);
+      assert.equal(routes.length, 0);
+    });
+  });
+
+  it("detects multi-line route registration", () => {
+    const content = [
+      "app.get(",
+      '  "/multi-line",',
+      "  handler",
+      ");",
+    ].join("\n");
+    withTempFile(content, (file) => {
+      const routes = analyzer.analyze([file]);
+      assert.equal(routes.length, 1);
+      assert.equal(routes[0].method, "GET");
+      assert.equal(routes[0].path, "/multi-line");
+    });
+  });
+
+  it("detects routes using template literals for paths", () => {
+    withTempFile("app.get(`/template`, handler);", (file) => {
+      const routes = analyzer.analyze([file]);
+      assert.equal(routes.length, 1);
+      assert.equal(routes[0].path, "/template");
+    });
+  });
+});
+
+describe("Express route analyzer — TypeScript files", () => {
+  it("detects routes in .ts file with type annotations", () => {
+    const content = [
+      'import { Request, Response } from "express";',
+      'app.get("/users", (req: Request, res: Response) => res.json([]));',
+      'app.post("/users", (req: Request, res: Response) => res.status(201).json({}));',
+      'app.get("/users/:id", (req: Request, res: Response) => res.json({}));',
+    ].join("\n");
+    withTempFile(content, (file) => {
+      const routes = analyzer.analyze([file]);
+      assert.equal(routes.length, 3);
+      assert.deepEqual(
+        routes.map((r) => r.method),
+        ["GET", "POST", "GET"]
+      );
+      assert.deepEqual(
+        routes.map((r) => r.path),
+        ["/users", "/users", "/users/:id"]
+      );
+    }, ".ts");
+  });
+
+  it("detects routes in .tsx file", () => {
+    const content = [
+      'import { Request, Response } from "express";',
+      'app.get("/api/data", (req: Request, res: Response) => res.json([]));',
+      'const el = <div>hello</div>;',
+    ].join("\n");
+    withTempFile(content, (file) => {
+      const routes = analyzer.analyze([file]);
+      assert.equal(routes.length, 1);
+      assert.equal(routes[0].method, "GET");
+      assert.equal(routes[0].path, "/api/data");
+    }, ".tsx");
   });
 });

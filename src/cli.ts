@@ -16,6 +16,7 @@ program
   .option("--intent <file>", "Path to intent file")
   .option("--dir <dir>", "Directory to scan")
   .option("--diff <file>", "Compare against a previous report")
+  .option("--debug", "Show detailed debug output (scanned files, analyzer matches)")
   .action((opts) => {
     const { run } = require("./commands/check");
     const code = run(opts);

@@ -1,21 +1,17 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { execFileSync } from "child_process";
+import { spawnSync } from "child_process";
 import path from "path";
 
 const CLI = path.join(__dirname, "../../dist/cli.js");
 
 function runCheck(args: string[] = [], cwd?: string) {
-  try {
-    const stdout = execFileSync("node", [CLI, "check", ...args], {
-      cwd: cwd || path.join(__dirname, "../../"),
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    return { stdout, exitCode: 0 };
-  } catch (err: any) {
-    return { stdout: err.stdout || "", stderr: err.stderr || "", exitCode: err.status };
-  }
+  const result = spawnSync("node", [CLI, "check", ...args], {
+    cwd: cwd || path.join(__dirname, "../../"),
+    encoding: "utf-8",
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  return { stdout: result.stdout || "", stderr: result.stderr || "", exitCode: result.status };
 }
 
 describe("check command — simple-express fixture", () => {
@@ -91,6 +87,57 @@ describe("check command — v0.1 backward compatibility", () => {
     assert.equal(report.summary.present, 2);
     assert.equal(report.summary.missing, 0);
     assert.equal(report.meta.intentVersion, "0.1");
+  });
+});
+
+describe("check command — typescript-express fixture", () => {
+  const fixtureDir = path.join(__dirname, "../fixtures/typescript-express");
+
+  it("finds all routes in TypeScript file, exit code 0", () => {
+    const { stdout, exitCode } = runCheck(["--format", "json", "--intent", "intent.json", "--dir", "."], fixtureDir);
+    const report = JSON.parse(stdout);
+    assert.equal(exitCode, 0);
+    assert.equal(report.summary.present, 4);
+    assert.equal(report.summary.missing, 0);
+    assert.equal(report.summary.complianceScore, 100);
+  });
+});
+
+describe("check command — debug mode", () => {
+  const fixtureDir = path.join(__dirname, "../fixtures/simple-express");
+
+  it("outputs debug info to stderr with --debug flag", () => {
+    const { stderr, exitCode } = runCheck(
+      ["--debug", "--format", "json", "--intent", "intent.json", "--dir", "."],
+      fixtureDir
+    );
+    assert.equal(exitCode, 0);
+    assert.ok(stderr.includes("[debug] Analyzers: express-route"));
+    assert.ok(stderr.includes("[debug] File extensions:"));
+    assert.ok(stderr.includes("[debug] Scanned"));
+    assert.ok(stderr.includes("[debug] Found 4 implementation(s)"));
+    assert.ok(stderr.includes("GET /users"));
+    assert.ok(stderr.includes("[debug] Feature results:"));
+    assert.ok(stderr.includes("PRESENT  list-users"));
+  });
+
+  it("shows MISSING features in debug output", () => {
+    const missingDir = path.join(__dirname, "../fixtures/missing-routes");
+    const { stderr, exitCode } = runCheck(
+      ["--debug", "--format", "json", "--intent", "intent.json", "--dir", "."],
+      missingDir
+    );
+    assert.equal(exitCode, 1);
+    assert.ok(stderr.includes("MISSING  create-user"));
+    assert.ok(stderr.includes("no matching implementation found"));
+  });
+
+  it("does not output debug info without --debug flag", () => {
+    const { stderr } = runCheck(
+      ["--format", "json", "--intent", "intent.json", "--dir", "."],
+      fixtureDir
+    );
+    assert.ok(!stderr.includes("[debug]"));
   });
 });
 
