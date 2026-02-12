@@ -24,8 +24,9 @@ program
 
 program
   .command("init")
-  .description("Create a starter intent.json")
+  .description("Create intent.json by discovering routes from source code")
   .option("--force", "Overwrite existing intent.json")
+  .option("--dir <dir>", "Directory to scan for routes")
   .action((opts) => {
     const { run } = require("./commands/init");
     const code = run(opts);
