@@ -7,7 +7,7 @@ Known issues, workarounds, and things to keep in mind.
 ## Self-scanning false positives
 
 **Status:** Workaround in place
-**Affected file:** `src/analyzers/express-route.js`
+**Affected file:** `src/analyzers/express-route.ts`
 
 The Express route analyzer uses regex patterns to detect route registrations
 in source files. Because this tool lives in the same repo as the sample app
@@ -18,7 +18,7 @@ examples (e.g. `app.get('/path')` or `router.route('/users').get()`), the
 regex will match them and report false "extra" routes from the analyzer
 file itself.
 
-**Current workaround:** Comments in `express-route.js` are written to
+**Current workaround:** Comments in `express-route.ts` are written to
 avoid patterns that look like actual route registrations. There is a
 caution comment at the top of the file as a reminder. This includes
 "helpful" examples in comments — even something like
@@ -42,16 +42,5 @@ exclusion was added in M5/M6 because test fixtures and unit tests contain
 route-like patterns (e.g. `app.get("/users")` in test strings) that
 produce false positives. This is a reasonable default — test code is not
 production routes. Users can override via `.intentrc.json` if needed.
-
----
-
-## Deprecated checker.js
-
-**File:** `src/core/checker.js`
-
-The original monolithic intent checker was replaced by the pluggable
-analyzer system in Milestone 3 (`src/analyzers/`). The old code is
-commented out but kept as a reference for the matching algorithm.
-`normalizePath()` is still exported as it may be useful elsewhere.
 
 ---

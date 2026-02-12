@@ -31,13 +31,16 @@ jobs:
 
       - run: npm install
 
+      - name: Build
+        run: npm run build
+
       - name: Run tests
         run: npm test
 
       - name: Check intent coverage
         id: check
         continue-on-error: true
-        run: node src/cli.js check --out intent-report.json
+        run: node dist/cli.js check --out intent-report.json
 
       - name: Upload report artifact
         if: always()
@@ -87,7 +90,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           set +e
-          node src/cli.js apply intent-report.json
+          node dist/cli.js apply intent-report.json
           EXIT_CODE=$?
           set -e
           if [ "$EXIT_CODE" -eq 0 ] && [ -f apply-result.json ]; then

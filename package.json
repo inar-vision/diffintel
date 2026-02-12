@@ -3,21 +3,25 @@
   "version": "0.1.0",
   "private": true,
   "bin": {
-    "intent-spec": "src/cli.js"
+    "intent-spec": "dist/cli.js"
   },
   "scripts": {
-    "start": "node app.js",
-    "check": "node src/cli.js check",
-    "propose": "node src/cli.js check --out .intent-report.json; node src/cli.js propose .intent-report.json",
-    "propose:apply": "node src/cli.js check --out .intent-report.json; node src/cli.js apply .intent-report.json",
-    "board": "node src/cli.js check --out intent-report.json && npx serve .",
-    "test": "node --test test/unit/*.test.js test/integration/*.test.js"
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "check": "node dist/cli.js check",
+    "propose": "node dist/cli.js check --out .intent-report.json; node dist/cli.js propose .intent-report.json",
+    "propose:apply": "node dist/cli.js check --out .intent-report.json; node dist/cli.js apply .intent-report.json",
+    "test": "tsc && node --import tsx --test test/unit/*.test.ts test/integration/*.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "ajv": "^8.17.1",
     "commander": "^14.0.3",
-    "dotenv": "^17.2.4",
-    "express": "^4.21.0"
+    "dotenv": "^17.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.11",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
   }
 }
