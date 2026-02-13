@@ -5,6 +5,7 @@ import { findSourceFiles } from "../core/scanner";
 import { createRunner } from "../analyzers";
 import { buildReport, formatReport, diffReports, formatDiff } from "../report";
 import { validateIntent } from "../schema/validate";
+import { validateConstraints } from "../constraints";
 
 // Exit codes
 const EXIT_OK = 0;
@@ -98,6 +99,26 @@ function run(options: CheckOptions = {}): number {
 
   // Check features against implementations
   const checkResult = runner.checkFeatures(intent, implementations);
+
+  // Validate constraints (type === "constraint" features)
+  const constraintFeatures = intent.features.filter((f) => f.type === "constraint");
+  if (constraintFeatures.length > 0) {
+    const constraintResults = validateConstraints(constraintFeatures, implementations, files);
+    checkResult.constraintResults = constraintResults;
+
+    if (debug) {
+      for (const cr of constraintResults) {
+        if (cr.status === "passed") {
+          console.error(`[debug]   CONSTRAINT PASS  ${cr.featureId} (${cr.rule})`);
+        } else {
+          console.error(`[debug]   CONSTRAINT FAIL  ${cr.featureId} (${cr.rule}) — ${cr.violations.length} violation(s)`);
+          for (const v of cr.violations) {
+            console.error(`[debug]     ${v.message}`);
+          }
+        }
+      }
+    }
+  }
 
   if (debug) {
     debugLog(debug, `Feature results:`);

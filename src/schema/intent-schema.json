@@ -113,11 +113,24 @@
             "properties": { "type": { "const": "constraint" } }
           },
           "then": {
+            "required": ["rule", "scope"],
             "properties": {
               "id": { "type": "string" },
               "type": { "type": "string" },
               "description": { "type": "string" },
-              "status": { "type": "string" }
+              "status": { "type": "string" },
+              "rule": { "type": "string", "minLength": 1 },
+              "scope": { "type": "string", "minLength": 1 },
+              "middleware": {
+                "oneOf": [
+                  { "type": "string" },
+                  { "type": "array", "items": { "type": "string" } }
+                ]
+              },
+              "forbidden": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
             },
             "additionalProperties": false
           }

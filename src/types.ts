@@ -13,6 +13,11 @@ export interface IntentFeature {
   contract?: {
     auth?: "required" | "none";
   };
+  // Constraint-specific fields (type === "constraint")
+  rule?: string;
+  scope?: string;
+  middleware?: string | string[];
+  forbidden?: string[];
 }
 
 export interface IntentDocument {
@@ -39,6 +44,30 @@ export interface ContractViolation {
   expected: string;
   actual: string;
 }
+
+export interface ConstraintViolation {
+  constraint: string;
+  rule: string;
+  message: string;
+  file?: string;
+  line?: number;
+  route?: string;
+  expected?: string;
+  actual?: string;
+}
+
+export interface ConstraintResult {
+  featureId: string;
+  rule: string;
+  status: "passed" | "failed";
+  violations: ConstraintViolation[];
+}
+
+export type ConstraintRule = (
+  feature: IntentFeature,
+  implementations: Implementation[],
+  files: string[]
+) => ConstraintViolation[];
 
 export interface MatchResult {
   found: boolean;
@@ -89,6 +118,9 @@ export interface ReportSummary {
   complianceScore: number;
   contractsChecked: number;
   contractViolations: number;
+  constraintsChecked: number;
+  constraintsPassed: number;
+  constraintsFailed: number;
 }
 
 export interface Report {
@@ -102,11 +134,15 @@ export interface Report {
   summary: ReportSummary;
   features: ReportFeature[];
   extraFeatures: ExtraFeature[];
+  constraints?: {
+    results: ConstraintResult[];
+  };
   drift: {
     hasDrift: boolean;
     missingCount: number;
     extraCount: number;
     contractViolationCount: number;
+    constraintFailedCount: number;
   };
 }
 
@@ -164,6 +200,7 @@ export interface CheckResult {
     status: string;
     reason: string;
   }>;
+  constraintResults?: ConstraintResult[];
 }
 
 export interface ValidationResult {

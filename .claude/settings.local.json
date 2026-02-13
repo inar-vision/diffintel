@@ -5,7 +5,14 @@
       "Bash(node check-intent.js:*)",
       "Bash(echo:*)",
       "Bash(node src/cli.js:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(git -C /home/jussi-korhonen/Documents/repos/intent-spec show 640b2ec --stat)",
+      "Bash(git -C /home/jussi-korhonen/Documents/repos/intent-spec show c4b2cc5 --stat)",
+      "Bash(node --import tsx --test test/unit/report.test.ts)",
+      "Bash(npx tsc:*)",
+      "Bash(node --import tsx --test test/unit/constraint-checker.test.ts)",
+      "Bash(node --import tsx --test test/integration/constraint-command.test.ts)",
+      "Bash(npx tsx:*)"
     ]
   }
 }

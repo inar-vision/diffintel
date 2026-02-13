@@ -55,14 +55,7 @@ function run(options: InitOptions = {}): number {
     meta: {
       name: projectName,
     },
-    features: [] as Array<{
-      id: string;
-      type: string;
-      status: string;
-      method: string;
-      path: string;
-      description?: string;
-    }>,
+    features: [] as Array<Record<string, unknown>>,
   };
 
   if (discovered.length > 0) {
@@ -82,6 +75,29 @@ function run(options: InitOptions = {}): number {
       });
     }
     console.error(`Discovered ${intent.features.length} route(s) from source code.`);
+
+    // Suggest constraints as drafts
+    const hasApiRoutes = discovered.some((impl) => impl.path.startsWith("/api/"));
+    if (hasApiRoutes) {
+      intent.features.push({
+        id: "api-auth-required",
+        type: "constraint",
+        status: "draft",
+        description: "All API routes require authentication middleware",
+        rule: "routes-require-middleware",
+        scope: "/api/*",
+        middleware: "authenticate",
+      });
+    }
+
+    intent.features.push({
+      id: "async-handlers-guarded",
+      type: "constraint",
+      status: "draft",
+      description: "Async route handlers must have try/catch error handling",
+      rule: "async-error-handling",
+      scope: "route-handlers",
+    });
   } else {
     intent.features.push({
       id: "example-feature",

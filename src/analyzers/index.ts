@@ -103,6 +103,9 @@ function createRunner(config: Partial<Config> = {}): AnalyzerRunner {
       const unannotatedFeatures: CheckResult["unannotatedFeatures"] = [];
 
       for (const feature of intent.features) {
+        // Constraints are handled separately by the constraint engine
+        if (feature.type === "constraint") continue;
+
         const status = feature.status || "approved";
 
         // Check if any analyzer handles this type

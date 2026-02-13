@@ -40,6 +40,8 @@ describe("Schema validation", () => {
           type: "constraint",
           status: "draft",
           description: "Rate limiting",
+          rule: "routes-require-middleware",
+          scope: "/api/*",
         },
       ],
     });

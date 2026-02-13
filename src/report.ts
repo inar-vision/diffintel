@@ -1,4 +1,4 @@
-import { IntentDocument, CheckResult, Report, ReportFeature, ExtraFeature, DiffResult } from "./types";
+import { IntentDocument, CheckResult, Report, ReportFeature, ExtraFeature, DiffResult, ConstraintResult } from "./types";
 
 const supportsColor =
   process.stderr.isTTY && process.env.NO_COLOR === undefined;
@@ -32,6 +32,7 @@ function buildReport(intent: IntentDocument, checkResult: CheckResult, meta: { i
     draftFeatures = [],
     deprecatedFeatures = [],
     unannotatedFeatures = [],
+    constraintResults = [],
   } = checkResult;
 
   const totalAnalyzed = presentFeatures.length + missingFeatures.length;
@@ -101,6 +102,11 @@ function buildReport(intent: IntentDocument, checkResult: CheckResult, meta: { i
     });
   }
 
+  // Constraint stats
+  const constraintsChecked = constraintResults.length;
+  const constraintsPassed = constraintResults.filter((r) => r.status === "passed").length;
+  const constraintsFailed = constraintResults.filter((r) => r.status === "failed").length;
+
   return {
     version: "0.2",
     meta: {
@@ -125,14 +131,21 @@ function buildReport(intent: IntentDocument, checkResult: CheckResult, meta: { i
       complianceScore,
       contractsChecked,
       contractViolations: contractViolationCount,
+      constraintsChecked,
+      constraintsPassed,
+      constraintsFailed,
     },
     features,
     extraFeatures,
+    ...(constraintResults.length > 0 && {
+      constraints: { results: constraintResults },
+    }),
     drift: {
-      hasDrift: missingFeatures.length > 0 || extraFeatures.length > 0 || contractViolationCount > 0,
+      hasDrift: missingFeatures.length > 0 || extraFeatures.length > 0 || contractViolationCount > 0 || constraintsFailed > 0,
       missingCount: missingFeatures.length,
       extraCount: extraFeatures.length,
       contractViolationCount,
+      constraintFailedCount: constraintsFailed,
     },
   };
 }
@@ -149,6 +162,9 @@ function formatReport(report: Report, format: string = "text"): string {
     if (summary.contractsChecked > 0) {
       const passing = summary.contractsChecked - summary.contractViolations;
       line += ` | contracts: ${passing}/${summary.contractsChecked}`;
+    }
+    if (summary.constraintsChecked > 0) {
+      line += ` | constraints: ${summary.constraintsPassed}/${summary.constraintsChecked}`;
     }
     return line;
   }
@@ -202,6 +218,12 @@ function formatReport(report: Report, format: string = "text"): string {
       `Contracts:         ${summary.contractViolations > 0 ? colors.red(contractStr) : colors.green(contractStr)}`
     );
   }
+  if (summary.constraintsChecked > 0) {
+    const constraintStr = `${summary.constraintsPassed}/${summary.constraintsChecked} passing`;
+    lines.push(
+      `Constraints:       ${summary.constraintsFailed > 0 ? colors.red(constraintStr) : colors.green(constraintStr)}`
+    );
+  }
 
   const missing = report.features.filter((f) => f.result === "missing");
   if (missing.length > 0) {
@@ -219,6 +241,19 @@ function formatReport(report: Report, format: string = "text"): string {
     for (const f of violations) {
       for (const v of f.contractViolations!) {
         lines.push(`  - ${f.id} (${f.method} ${f.path}) — ${v.contract}: expected ${v.expected}, actual ${v.actual}`);
+      }
+    }
+  }
+
+  if (report.constraints) {
+    const failed = report.constraints.results.filter((r) => r.status === "failed");
+    if (failed.length > 0) {
+      lines.push(colors.red(`\nConstraint violations:`));
+      for (const cr of failed) {
+        for (const v of cr.violations) {
+          const loc = v.file ? ` ${colors.dim(`(${v.file}${v.line ? `:${v.line}` : ""})`)}` : "";
+          lines.push(`  - [${cr.rule}] ${v.message}${loc}`);
+        }
       }
     }
   }

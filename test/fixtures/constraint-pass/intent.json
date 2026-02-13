@@ -1,0 +1,17 @@
+{
+  "version": "0.2",
+  "meta": { "name": "constraint-pass" },
+  "features": [
+    { "id": "get-api-users", "type": "http-route", "method": "GET", "path": "/api/users" },
+    { "id": "get-api-orders", "type": "http-route", "method": "GET", "path": "/api/orders" },
+    { "id": "get-health", "type": "http-route", "method": "GET", "path": "/health" },
+    {
+      "id": "api-auth-required",
+      "type": "constraint",
+      "description": "All API routes require auth middleware",
+      "rule": "routes-require-middleware",
+      "scope": "/api/*",
+      "middleware": "authenticate"
+    }
+  ]
+}
