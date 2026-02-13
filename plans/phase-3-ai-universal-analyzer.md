@@ -1,6 +1,6 @@
 # Phase 3 — AI Universal Analyzer & Advanced Compliance
 
-> **Status**: In progress — Phase 2 complete. M1-M2 (AI Universal Analyzer) deferred; starting from M3.
+> **Status**: In progress — M3 (Behavioral Contracts) and M4 (Architectural Constraints) complete. M5 next.
 >
 > **Decision (Phase 2 retrospective):** M1-M2 are deferred indefinitely. Adding a non-deterministic AI analyzer at this stage risks undermining the core value proposition — deterministic, reproducible compliance checking that runs in CI without network access or API costs. AI already lives in the reconciliation layer (propose/apply) where non-determinism is acceptable. The priority is deepening what the deterministic AST engine can check (contracts, constraints) rather than broadening framework coverage via AI. M1-M2 may be revisited later as an opt-in Tier 2 fallback.
 
@@ -184,29 +184,42 @@ Start with 2-3 constraints that are common, useful, and feasible with AST analys
 - Edge case handling: very large files, binary files, generated code
 - Clear reporting when AI analysis is used vs built-in analyzers
 
-### M3: Behavioral Contracts — Schema & Static Analysis
+### M3: Behavioral Contracts — Schema & Static Analysis ✅
 
-- Extend intent.json schema with `contract` field
-- Update schema validation
-- Implement static analysis for response shape validation (AST-based)
-- Implement auth middleware detection
-- Report contract violations alongside route presence/absence
-- Update report format to include contract compliance
+- ✅ Extended intent.json schema with `contract` field on `http-route` features
+- ✅ Auth middleware detection via AST (configurable middleware names via `.intentrc.json`)
+- ✅ Contract violations reported per-feature (in `feature.contractViolations[]`)
+- ✅ Contract violations contribute to drift but not compliance score
+- ✅ Report format includes `contractsChecked`, `contractViolations`, `contractViolationCount`
+- ✅ Unit tests (middleware extraction, contract matching) and integration tests (fixtures)
 
-### M4: Architectural Constraints
+### M4: Architectural Constraints ✅
 
-- Implement constraint analyzer with pluggable rule system
-- Built-in rules: auth middleware requirement, no direct DB calls, async error handling
-- Constraint results integrated into compliance report and score
-- Update `init` to suggest common constraints based on detected patterns
-- Documentation for writing custom constraint rules
+- ✅ Separate constraint engine (`src/constraints/`) with pluggable rule registry
+- ✅ Scope matcher: prefix patterns (`/api/*`), wildcard (`*`), exact match, `route-handlers`
+- ✅ Built-in rules:
+  - `routes-require-middleware` — checks middleware presence on routes matching scope
+  - `no-direct-import` — AST-based detection of forbidden require/import statements
+  - `async-error-handling` — AST-based detection of unguarded async handlers
+- ✅ Constraints skipped in normal analyzer loop (no "unanalyzable" noise)
+- ✅ Draft constraints silently skipped
+- ✅ Constraint results in report: `constraints.results[]`, summary counts, drift integration
+- ✅ `init` command suggests common constraints as drafts
+- ✅ 21 unit tests + 6 integration tests (all passing)
+- ✅ Documentation: `docs/constraints.md`
+- ⚠️ `propose` and `apply` commands do NOT yet handle constraint violations (M5 scope)
 
 ### M5: Integration & Polish
 
-- Ensure all three tiers work together seamlessly
-- Update `propose` and `apply` commands to handle behavioral contracts and constraints
+- Update `propose` and `apply` commands to handle constraint violations:
+  - `propose`: include constraint violations in the proposal prompt (alongside missing features)
+  - `apply`: generate code fixes for constraint violations (e.g., add missing middleware, wrap async handlers)
+  - Both commands currently only act on `result === "missing"` features; need to also act when `constraintsFailed > 0`
+  - The prompt builder needs a new section describing constraint violations, the rule that failed, and the specific routes/files involved
+  - The apply validator should re-check constraints after applying changes
+- Update `propose` and `apply` to handle contract violations (same gap — they ignore `contractViolationCount`)
 - Performance optimization for large codebases
-- Comprehensive test suite for all new features
+- Comprehensive test suite for reconciliation with contracts and constraints
 - Update CI workflow examples
 
 ## Dependencies

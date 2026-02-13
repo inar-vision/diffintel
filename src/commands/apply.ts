@@ -1,11 +1,11 @@
 import fs from "fs";
-import { apply } from "../reconcile/reconciler";
+import { apply, extractFeatures, hasIssues } from "../reconcile/reconciler";
 import { loadConfig } from "../config";
 import { loadIntent } from "../core/intent";
 import { findSourceFiles } from "../core/scanner";
 import { createRunner } from "../analyzers";
 import { buildReport } from "../report";
-import { ReportFeature } from "../types";
+import { validateConstraints } from "../constraints";
 
 function runCheck(intentFile: string, scanDir: string, config: ReturnType<typeof loadConfig>) {
   const intent = loadIntent(intentFile);
@@ -17,6 +17,13 @@ function runCheck(intentFile: string, scanDir: string, config: ReturnType<typeof
   });
   const implementations = runner.analyzeFiles(files);
   const checkResult = runner.checkFeatures(intent, implementations);
+
+  // Also validate constraints
+  const constraintFeatures = intent.features.filter((f) => f.type === "constraint");
+  if (constraintFeatures.length > 0) {
+    checkResult.constraintResults = validateConstraints(constraintFeatures, implementations, files);
+  }
+
   return buildReport(intent, checkResult, {
     intentFile,
     totalImplemented: implementations.length,
@@ -46,20 +53,22 @@ async function run(options: ApplyOptions = {}): Promise<number> {
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf-8"));
   const dryRun = options.dryRun || false;
+  const issues = extractFeatures(report);
 
-  // Check for missing features in both v0.1 and v0.2 report formats
-  const missing = report.features
-    ? report.features.filter((f: ReportFeature) => f.result === "missing")
-    : report.missingFeatures || [];
-
-  if (missing.length === 0) {
-    console.log("All features implemented.");
+  if (!hasIssues(issues)) {
+    console.log("All features implemented, no violations found.");
     return 0;
   }
 
+  const { missing, failedConstraints, contractViolations } = issues;
+  const issueParts: string[] = [];
+  if (missing.length > 0) issueParts.push(`${missing.length} missing feature(s)`);
+  if (failedConstraints.length > 0) issueParts.push(`${failedConstraints.length} constraint violation(s)`);
+  if (contractViolations.length > 0) issueParts.push(`${contractViolations.length} contract violation(s)`);
+
   const complianceBefore = report.summary?.complianceScore ?? null;
 
-  console.error(`Applying fixes for ${missing.length} missing feature(s)...`);
+  console.error(`Applying fixes for ${issueParts.join(", ")}...`);
   if (dryRun) {
     console.error("(dry-run mode — no files will be written)");
   }
@@ -113,11 +122,40 @@ async function run(options: ApplyOptions = {}): Promise<number> {
     (id) => !remainingMissing.some((f) => f.id === id)
   );
 
+  // Constraint resolution tracking
+  const afterConstraintResults = afterReport?.constraints?.results || [];
+  const afterFailedConstraintIds = new Set(
+    afterConstraintResults.filter((cr) => cr.status === "failed").map((cr) => cr.featureId)
+  );
+  const resolvedConstraints = result.fixedConstraints.filter(
+    (id) => !afterFailedConstraintIds.has(id)
+  );
+  const remainingConstraintFailures = result.fixedConstraints.filter(
+    (id) => afterFailedConstraintIds.has(id)
+  );
+
+  // Contract resolution tracking
+  const afterContractViolationIds = new Set(
+    (afterReport?.features || [])
+      .filter((f) => f.result === "present" && f.contractViolations && f.contractViolations.length > 0)
+      .map((f) => f.id)
+  );
+  const resolvedContracts = result.fixedContracts.filter(
+    (id) => !afterContractViolationIds.has(id)
+  );
+  const remainingContractViolations = result.fixedContracts.filter(
+    (id) => afterContractViolationIds.has(id)
+  );
+
   const summary = {
     applied: true,
     changedFiles: result.changedFiles,
     resolvedFeatures,
     remainingDrift: remainingMissing.map((f) => f.id),
+    resolvedConstraints,
+    remainingConstraintFailures,
+    resolvedContracts,
+    remainingContractViolations,
     complianceBefore,
     complianceAfter,
     tokenUsage: result.tokenUsage,
@@ -137,8 +175,32 @@ async function run(options: ApplyOptions = {}): Promise<number> {
     for (const f of remainingMissing) {
       console.error(`  - ${f.id} (${f.method} ${f.path})`);
     }
-  } else if (afterReport) {
-    console.error("\nAll targeted features resolved.");
+  }
+
+  if (remainingConstraintFailures.length > 0) {
+    console.error(
+      `\nWarning: ${remainingConstraintFailures.length} constraint(s) still failing after apply:`
+    );
+    for (const id of remainingConstraintFailures) {
+      console.error(`  - ${id}`);
+    }
+  }
+
+  if (remainingContractViolations.length > 0) {
+    console.error(
+      `\nWarning: ${remainingContractViolations.length} contract violation(s) still present after apply:`
+    );
+    for (const id of remainingContractViolations) {
+      console.error(`  - ${id}`);
+    }
+  }
+
+  const allResolved = remainingMissing.length === 0
+    && remainingConstraintFailures.length === 0
+    && remainingContractViolations.length === 0;
+
+  if (allResolved && afterReport) {
+    console.error("\nAll targeted issues resolved.");
   }
 
   if (complianceBefore !== null && complianceAfter !== null) {

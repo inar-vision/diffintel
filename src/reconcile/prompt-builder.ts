@@ -25,31 +25,68 @@ function buildIntentContext(report: Report): string {
   return lines.join("\n");
 }
 
-function buildProposalPrompt(missingSection: string, sourceSection: string, report?: Report): string {
+function buildIssueSections(
+  missingSection: string,
+  constraintSection?: string,
+  contractSection?: string,
+): string {
+  const parts: string[] = [];
+
+  if (missingSection) {
+    parts.push(`## Missing features\nThe following features are declared but not implemented:\n\n${missingSection}`);
+  }
+
+  if (constraintSection) {
+    parts.push(`## Constraint violations\nThe following cross-cutting constraints are violated:\n\n${constraintSection}`);
+  }
+
+  if (contractSection) {
+    parts.push(`## Contract violations\nThe following routes violate their behavioral contracts:\n\n${contractSection}`);
+  }
+
+  return parts.join("\n\n");
+}
+
+function buildProposalPrompt(
+  missingSection: string,
+  sourceSection: string,
+  report?: Report,
+  constraintSection?: string,
+  contractSection?: string,
+): string {
   const intentContext = report ? buildIntentContext(report) : "";
+  const issueContent = buildIssueSections(missingSection, constraintSection, contractSection);
 
-  return `You are reviewing an Express.js application. The following features are declared in the intent specification but have NOT been implemented yet:
+  return `You are reviewing an Express.js application. The following issues need to be resolved:
 
-${missingSection}
+${issueContent}
 
 ${intentContext ? intentContext + "\n\n" : ""}Here are the existing source files for context on patterns and style:
 
 ${sourceSection}
 
-Please write a plain-text proposal (not code) describing what changes are needed to implement each missing feature. For each feature, describe:
+Please write a plain-text proposal (not code) describing what changes are needed to resolve each issue. For each issue, describe:
 1. Which file should be modified
-2. What the route handler should do (based on patterns in existing code)
+2. What changes are needed (add route, add middleware, remove import, wrap handler, etc.)
 3. Any middleware or validation that might be needed
 
 Keep the proposal concise and actionable.`;
 }
 
-function buildApplyPrompt(missingSection: string, sourceSection: string, allowedFiles: string[], report?: Report): string {
+function buildApplyPrompt(
+  missingSection: string,
+  sourceSection: string,
+  allowedFiles: string[],
+  report?: Report,
+  constraintSection?: string,
+  contractSection?: string,
+): string {
   const intentContext = report ? buildIntentContext(report) : "";
+  const issueContent = buildIssueSections(missingSection, constraintSection, contractSection);
 
-  return `You are modifying an Express.js application. The following features are declared in the intent specification but have NOT been implemented yet:
+  return `You are modifying an Express.js application. The following issues need to be resolved:
 
-${missingSection}
+${issueContent}
 
 ${intentContext ? intentContext + "\n\n" : ""}Here are the existing source files:
 
@@ -61,7 +98,9 @@ Rules:
 - You may ONLY modify these files: ${allowedFiles.join(", ")}
 - You must NOT modify intent.json
 - You must preserve ALL existing routes and functionality
-- Add the missing routes following the patterns in the existing code
+- For missing features: add the routes following the patterns in the existing code
+- For constraint violations: add required middleware, remove forbidden imports, or wrap handlers as specified
+- For contract violations: add or fix middleware on the specific routes to satisfy their contracts
 - Return ONLY the JSON object, no other text
 
 Example format:
@@ -70,4 +109,4 @@ Example format:
 }`;
 }
 
-export { buildProposalPrompt, buildApplyPrompt, SYSTEM_PROMPT };
+export { buildProposalPrompt, buildApplyPrompt, buildIssueSections, SYSTEM_PROMPT };

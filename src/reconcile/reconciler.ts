@@ -2,12 +2,24 @@ import fs from "fs";
 import Anthropic from "@anthropic-ai/sdk";
 import { buildProposalPrompt, buildApplyPrompt, SYSTEM_PROMPT } from "./prompt-builder";
 import { stripMarkdownFences, validateApplyResult } from "./validator";
-import { Report, ReportFeature } from "../types";
+import { Report, ReportFeature, ConstraintResult } from "../types";
 
-function collectSourceContext(presentFeatures: ReportFeature[]): Record<string, string> {
+interface ExtractedIssues {
+  missing: ReportFeature[];
+  present: ReportFeature[];
+  failedConstraints: ConstraintResult[];
+  contractViolations: ReportFeature[];
+}
+
+function collectSourceContext(presentFeatures: ReportFeature[], additionalFiles?: string[]): Record<string, string> {
   const files = new Set<string>();
   for (const f of presentFeatures) {
     if (f.implementedIn) files.add(f.implementedIn);
+  }
+  if (additionalFiles) {
+    for (const f of additionalFiles) {
+      files.add(f);
+    }
   }
   const context: Record<string, string> = {};
   for (const filePath of files) {
@@ -21,23 +33,51 @@ function collectSourceContext(presentFeatures: ReportFeature[]): Record<string, 
 }
 
 /**
- * Extract missing and present features from either v0.1 or v0.2 report format.
+ * Extract missing features, present features, failed constraints, and contract violations
+ * from either v0.1 or v0.2 report format.
  */
-function extractFeatures(report: any): { missing: ReportFeature[]; present: ReportFeature[] } {
+function extractFeatures(report: any): ExtractedIssues {
   // v0.2 format: unified features array
   if (report.features && Array.isArray(report.features)) {
     const missing = report.features.filter((f: ReportFeature) => f.result === "missing");
     const present = report.features.filter((f: ReportFeature) => f.result === "present");
-    return { missing, present };
+
+    const failedConstraints: ConstraintResult[] = (report.constraints?.results || [])
+      .filter((cr: ConstraintResult) => cr.status === "failed");
+
+    const contractViolations: ReportFeature[] = present
+      .filter((f: ReportFeature) => f.contractViolations && f.contractViolations.length > 0);
+
+    return { missing, present, failedConstraints, contractViolations };
   }
   // v0.1 format: separate arrays
   return {
     missing: report.missingFeatures || [],
     present: report.presentFeatures || [],
+    failedConstraints: [],
+    contractViolations: [],
   };
 }
 
-function buildSections(missing: ReportFeature[], sourceContext: Record<string, string>): { sourceSection: string; missingSection: string } {
+function hasIssues(issues: ExtractedIssues): boolean {
+  return issues.missing.length > 0
+    || issues.failedConstraints.length > 0
+    || issues.contractViolations.length > 0;
+}
+
+interface IssueSections {
+  sourceSection: string;
+  missingSection: string;
+  constraintSection: string;
+  contractSection: string;
+}
+
+function buildSections(
+  missing: ReportFeature[],
+  sourceContext: Record<string, string>,
+  failedConstraints: ConstraintResult[],
+  contractViolations: ReportFeature[],
+): IssueSections {
   const sourceSection = Object.entries(sourceContext)
     .map(([file, content]) => `### ${file}\n\`\`\`js\n${content}\n\`\`\``)
     .join("\n\n");
@@ -46,7 +86,24 @@ function buildSections(missing: ReportFeature[], sourceContext: Record<string, s
     .map((f) => `- ${f.id}: ${f.method} ${f.path}`)
     .join("\n");
 
-  return { sourceSection, missingSection };
+  const constraintSection = failedConstraints
+    .flatMap((cr) =>
+      cr.violations.map((v) => {
+        const loc = v.file ? (v.line ? `${v.file}:${v.line}` : v.file) : "";
+        return `- [${cr.rule}] ${v.message}${loc ? ` (${loc})` : ""}`;
+      })
+    )
+    .join("\n");
+
+  const contractSection = contractViolations
+    .flatMap((f) =>
+      (f.contractViolations || []).map((v) =>
+        `- ${f.id} (${f.method} ${f.path}): contract.${v.contract} expected ${v.expected}, actual ${v.actual}${f.implementedIn ? ` (${f.implementedIn})` : ""}`
+      )
+    )
+    .join("\n");
+
+  return { sourceSection, missingSection, constraintSection, contractSection };
 }
 
 interface TokenUsage {
@@ -62,10 +119,14 @@ function extractTokenUsage(message: Anthropic.Message): TokenUsage {
 }
 
 async function propose(report: Report): Promise<{ text: string; tokenUsage: TokenUsage }> {
-  const { missing, present } = extractFeatures(report);
-  const sourceContext = collectSourceContext(present);
-  const { sourceSection, missingSection } = buildSections(missing, sourceContext);
-  const prompt = buildProposalPrompt(missingSection, sourceSection, report);
+  const { missing, present, failedConstraints, contractViolations } = extractFeatures(report);
+  const constraintFiles = failedConstraints.flatMap(
+    (cr) => cr.violations.filter((v) => v.file).map((v) => v.file!)
+  );
+  const sourceContext = collectSourceContext(present, constraintFiles);
+  const { sourceSection, missingSection, constraintSection, contractSection } =
+    buildSections(missing, sourceContext, failedConstraints, contractViolations);
+  const prompt = buildProposalPrompt(missingSection, sourceSection, report, constraintSection, contractSection);
 
   const client = new Anthropic();
   const message = await client.messages.create({
@@ -89,16 +150,22 @@ interface ApplyResult {
   changedFiles: string[];
   proposedChanges?: Record<string, string>;
   missingFeatures: string[];
+  fixedConstraints: string[];
+  fixedContracts: string[];
   tokenUsage: TokenUsage;
 }
 
 async function apply(report: Report, options: { dryRun?: boolean } = {}): Promise<ApplyResult> {
   const dryRun = options.dryRun || false;
-  const { missing, present } = extractFeatures(report);
-  const sourceContext = collectSourceContext(present);
-  const { sourceSection, missingSection } = buildSections(missing, sourceContext);
+  const { missing, present, failedConstraints, contractViolations } = extractFeatures(report);
+  const constraintFiles = failedConstraints.flatMap(
+    (cr) => cr.violations.filter((v) => v.file).map((v) => v.file!)
+  );
+  const sourceContext = collectSourceContext(present, constraintFiles);
+  const { sourceSection, missingSection, constraintSection, contractSection } =
+    buildSections(missing, sourceContext, failedConstraints, contractViolations);
   const allowedFiles = Object.keys(sourceContext);
-  const prompt = buildApplyPrompt(missingSection, sourceSection, allowedFiles, report);
+  const prompt = buildApplyPrompt(missingSection, sourceSection, allowedFiles, report, constraintSection, contractSection);
 
   const client = new Anthropic();
   const message = await client.messages.create({
@@ -127,6 +194,9 @@ async function apply(report: Report, options: { dryRun?: boolean } = {}): Promis
     throw new Error(`Validation failed: ${validation.error}`);
   }
 
+  const targetedConstraints = failedConstraints.map((cr) => cr.featureId);
+  const targetedContracts = contractViolations.map((f) => f.id);
+
   if (dryRun) {
     return {
       applied: false,
@@ -134,6 +204,8 @@ async function apply(report: Report, options: { dryRun?: boolean } = {}): Promis
       changedFiles: Object.keys(parsed),
       proposedChanges: parsed,
       missingFeatures: missing.map((f) => f.id),
+      fixedConstraints: targetedConstraints,
+      fixedContracts: targetedContracts,
       tokenUsage,
     };
   }
@@ -149,8 +221,10 @@ async function apply(report: Report, options: { dryRun?: boolean } = {}): Promis
     applied: true,
     changedFiles,
     missingFeatures: missing.map((f) => f.id),
+    fixedConstraints: targetedConstraints,
+    fixedContracts: targetedContracts,
     tokenUsage,
   };
 }
 
-export { collectSourceContext, extractFeatures, propose, apply };
+export { collectSourceContext, extractFeatures, hasIssues, buildSections, propose, apply };

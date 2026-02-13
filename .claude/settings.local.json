@@ -12,7 +12,8 @@
       "Bash(npx tsc:*)",
       "Bash(node --import tsx --test test/unit/constraint-checker.test.ts)",
       "Bash(node --import tsx --test test/integration/constraint-command.test.ts)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(node --import tsx --test 'test/**/*.test.ts')"
     ]
   }
 }

@@ -1,6 +1,5 @@
 import fs from "fs";
-import { propose } from "../reconcile/reconciler";
-import { ReportFeature } from "../types";
+import { propose, extractFeatures, hasIssues } from "../reconcile/reconciler";
 
 interface ProposeOptions {
   report?: string;
@@ -22,14 +21,10 @@ async function run(options: ProposeOptions = {}): Promise<number> {
   }
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf-8"));
+  const issues = extractFeatures(report);
 
-  // Check for missing features in both v0.1 and v0.2 report formats
-  const missing = report.features
-    ? report.features.filter((f: ReportFeature) => f.result === "missing")
-    : report.missingFeatures || [];
-
-  if (missing.length === 0) {
-    console.log("All features implemented.");
+  if (!hasIssues(issues)) {
+    console.log("All features implemented, no violations found.");
     return 0;
   }
 
