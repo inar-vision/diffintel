@@ -129,11 +129,30 @@ function getFileHistory(filePath: string, upToRef: string, count: number = 5): F
       `git log --format="%h|%s|%cr" -${count} ${upToRef} -- ${filePath}`,
       { encoding: "utf-8" },
     );
-    return log.trim().split("\n").filter(Boolean).map((line) => {
+    const entries = log.trim().split("\n").filter(Boolean).map((line) => {
       const [hash, message, age] = line.split("|");
-      return { hash, message, age };
+      return { hash, message, age } as FileHistoryEntry;
     });
+
+    // Attach the diff from the most recent commit so the LLM can see what just changed
+    if (entries.length > 0) {
+      entries[0].diff = getCommitFileDiff(entries[0].hash, filePath);
+    }
+
+    return entries;
   } catch {
     return [];
+  }
+}
+
+function getCommitFileDiff(hash: string, filePath: string): string | undefined {
+  try {
+    const diff = execSync(
+      `git diff ${hash}~1..${hash} -- ${filePath}`,
+      { encoding: "utf-8" },
+    );
+    return diff.trim() || undefined;
+  } catch {
+    return undefined;
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "diffintel",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "AI-powered structural diff explainer for pull requests",
   "bin": {
     "diffintel": "dist/cli.js"
