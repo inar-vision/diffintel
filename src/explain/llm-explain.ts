@@ -27,7 +27,14 @@ export async function explainChanges(
       const entries = f.recentHistory
         .map((h) => `  - ${h.hash} ${h.message} (${h.age})`)
         .join("\n");
-      return `- ${f.path}:\n${entries}`;
+      const latestDiff = f.recentHistory[0]?.diff;
+      const trimmedDiff = latestDiff && latestDiff.length > 1500
+        ? latestDiff.slice(0, 1500) + "\n... (truncated)"
+        : latestDiff;
+      const diffSection = trimmedDiff
+        ? `\n  Most recent commit diff:\n${trimmedDiff.split("\n").map((l) => `    ${l}`).join("\n")}`
+        : "";
+      return `- ${f.path}:\n${entries}${diffSection}`;
     })
     .join("\n");
 

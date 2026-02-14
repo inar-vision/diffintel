@@ -4,6 +4,7 @@ export interface FileHistoryEntry {
   hash: string;
   message: string;
   age: string;
+  diff?: string;
 }
 
 export interface FileDiff {
