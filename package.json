@@ -1,21 +1,18 @@
 {
-  "name": "intent-spec-poc",
+  "name": "diffintel",
   "version": "0.1.0",
-  "private": true,
+  "description": "AI-powered structural diff explainer for pull requests",
   "bin": {
-    "intent-spec": "dist/cli.js"
+    "diffintel": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsx src/cli.ts",
-    "check": "node dist/cli.js check",
-    "propose": "node dist/cli.js check --out .intent-report.json; node dist/cli.js propose .intent-report.json",
-    "propose:apply": "node dist/cli.js check --out .intent-report.json; node dist/cli.js apply .intent-report.json",
-    "test": "tsc && node --import tsx --test test/unit/*.test.ts test/integration/*.test.ts"
+    "test": "tsc && node --import tsx --test test/unit/*.test.ts"
   },
+  "keywords": ["diff", "pull-request", "code-review", "ast", "tree-sitter", "ai", "llm"],
+  "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
-    "ajv": "^8.17.1",
     "commander": "^14.0.3",
     "dotenv": "^17.2.4",
     "tree-sitter": "^0.25.0",

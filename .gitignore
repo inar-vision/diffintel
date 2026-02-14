@@ -3,7 +3,4 @@ node_modules/
 dist/
 
 # Generated reports
-.intent-report.json
-intent-report.json
-apply-result.json
-report-a.json
+explain-report.html
