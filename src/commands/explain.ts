@@ -63,11 +63,15 @@ export async function run(opts: ExplainOptions): Promise<number> {
     const html = renderReport(report);
     fs.writeFileSync(outFile, html, "utf-8");
 
-    console.error(`\nTitle: ${explanation.title}`);
-    console.error(`Files: ${fileDiffs.length} | +${totalAdditions} -${totalDeletions}`);
-    console.error(`Risks: ${explanation.risks.length > 0 ? explanation.risks.map((r) => `${r.level}: ${r.description}`).join("; ") : "none"}`);
-    console.error(`Tokens: ${explanation.tokenUsage.input} in / ${explanation.tokenUsage.output} out`);
-    console.error(`\nReport written to: ${outFile}`);
+    console.error(`\n${explanation.title}`);
+    console.error(`${fileDiffs.length} files | +${totalAdditions} -${totalDeletions}`);
+    if (explanation.fixes.length > 0) {
+      console.error(`Fixes: ${explanation.fixes.map((f) => f.description).join("; ")}`);
+    }
+    if (explanation.risks.length > 0) {
+      console.error(`Risks: ${explanation.risks.map((r) => `[${r.level}] ${r.description}`).join("; ")}`);
+    }
+    console.error(`\nReport: ${outFile}`);
 
     return 0;
   } catch (err: any) {
