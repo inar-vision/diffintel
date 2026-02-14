@@ -8,7 +8,14 @@ Context rules:
 - Use history to understand INTENT: if a recent commit broke something and this diff fixes it, categorize it as a FIX.
 - Clearly separate what was FIXED from what are genuine RISKS.
 - Write the description in plain language that a non-developer can understand.
-- For file explanations, describe what each file does and what changed in simple terms.`;
+- For file explanations, describe what each file does and what changed in simple terms.
+
+Precision rules:
+- When describing changes, state what BEHAVIOR changed, not just what code moved.
+- Be specific: "product listings now require a valid token" not "authentication was added".
+- Name the affected endpoints, functions, or data flows.
+- If an assumption or invariant changed (e.g., "IDs were sequential, now they're computed"), say so.
+- Stick to what the diff shows. Do not speculate about intent beyond what the code and history demonstrate.`;
 
 const ACTION_ICON: Record<string, string> = {
   added: "+",
@@ -28,7 +35,10 @@ export async function explainChanges(
   files: FileAnalysis[],
   rawDiff: string,
 ): Promise<LLMExplanation> {
-  const historySummary = files
+  // Sort files by path for stable, deterministic prompt ordering
+  const sortedFiles = [...files].sort((a, b) => a.path.localeCompare(b.path));
+
+  const historySummary = sortedFiles
     .filter((f) => f.recentHistory.length > 0)
     .map((f) => {
       const entries = f.recentHistory
@@ -45,12 +55,12 @@ export async function explainChanges(
     })
     .join("\n");
 
-  const baseSummary = files
+  const baseSummary = sortedFiles
     .filter((f) => f.baseDeclarations.length > 0)
     .map((f) => `- ${f.path}: ${f.baseDeclarations.join(", ")}`)
     .join("\n");
 
-  const structuralSummary = files
+  const structuralSummary = sortedFiles
     .filter((f) => f.structuralChanges.length > 0)
     .map((f) => {
       const changes = f.structuralChanges
@@ -60,7 +70,7 @@ export async function explainChanges(
     })
     .join("\n");
 
-  const fileList = files.map((f) => `- ${f.path} (${f.status})`).join("\n");
+  const fileList = sortedFiles.map((f) => `- ${f.path} (${f.status})`).join("\n");
 
   const truncatedDiff = truncateDiff(rawDiff, 4000);
 
@@ -97,6 +107,7 @@ Rules:
   const message = await client.messages.create({
     model: "claude-sonnet-4-5-20250929",
     max_tokens: 1024,
+    temperature: 0,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: prompt }],
   });
