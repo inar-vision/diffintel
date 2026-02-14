@@ -147,9 +147,6 @@ export function renderReport(report: ExplainReport): string {
   .risk-high { background: #fef2f2; border-left: 3px solid #ef4444; color: #991b1b; }
   .risk-high .risk-label { background: #ef4444; }
 
-  /* No items */
-  .none-msg { color: #aaa; font-size: 14px; font-style: italic; }
-
   /* File cards */
   .file-card {
     border: 1px solid #e5e7eb; border-radius: 8px;
@@ -243,9 +240,7 @@ export function renderReport(report: ExplainReport): string {
 
   ${fixesHtml ? `<h2>What was fixed</h2>\n${fixesHtml}` : ""}
 
-  ${risksHtml
-    ? `<h2>Things to watch</h2>\n${risksHtml}`
-    : `<h2>Things to watch</h2>\n<p class="none-msg">No concerns identified.</p>`}
+  ${risksHtml ? `<h2>Things to watch</h2>\n${risksHtml}` : ""}
 
   <h2>Changed files</h2>
   ${fileCards}
