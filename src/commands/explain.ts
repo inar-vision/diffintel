@@ -3,23 +3,21 @@ import { getDiff } from "../explain/git-diff";
 import { analyzeFile } from "../explain/ast-diff";
 import { explainChanges } from "../explain/llm-explain";
 import { renderReport } from "../explain/html-report";
-import { ExplainReport } from "../explain/types";
+import { renderMarkdownSummary } from "../explain/markdown-summary";
+import { ExplainReport, LLMExplanation } from "../explain/types";
 
 interface ExplainOptions {
   base?: string;
   head?: string;
   out?: string;
+  summary?: string;
 }
 
 export async function run(opts: ExplainOptions): Promise<number> {
   const baseRef = opts.base || "origin/main";
   const headRef = opts.head || "HEAD";
   const outFile = opts.out || "explain-report.html";
-
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error("Error: ANTHROPIC_API_KEY environment variable is required.");
-    return 1;
-  }
+  const hasApiKey = !!process.env.ANTHROPIC_API_KEY;
 
   try {
     console.error(`Analyzing diff: ${baseRef}...${headRef}`);
@@ -40,12 +38,26 @@ export async function run(opts: ExplainOptions): Promise<number> {
     });
 
     const totalChanges = fileAnalyses.reduce((sum, f) => sum + f.structuralChanges.length, 0);
-    console.error(`Detected ${totalChanges} structural change(s). Calling LLM...`);
-
-    const explanation = await explainChanges(fileAnalyses, rawDiff);
-
     const totalAdditions = fileDiffs.reduce((sum, f) => sum + f.additions, 0);
     const totalDeletions = fileDiffs.reduce((sum, f) => sum + f.deletions, 0);
+
+    let explanation: LLMExplanation;
+
+    if (hasApiKey) {
+      console.error(`Detected ${totalChanges} structural change(s). Calling LLM...`);
+      explanation = await explainChanges(fileAnalyses, rawDiff);
+    } else {
+      console.error(`Detected ${totalChanges} structural change(s). No API key — generating AST-only report.`);
+      explanation = {
+        title: buildAutoTitle(fileDiffs.length, totalAdditions, totalDeletions),
+        description: "",
+        impact: [],
+        fixes: [],
+        risks: [],
+        fileExplanations: [],
+        tokenUsage: { input: 0, output: 0 },
+      };
+    }
 
     const report: ExplainReport = {
       generatedAt: new Date().toISOString(),
@@ -63,6 +75,11 @@ export async function run(opts: ExplainOptions): Promise<number> {
     const html = renderReport(report);
     fs.writeFileSync(outFile, html, "utf-8");
 
+    // Generate markdown summary alongside HTML
+    const summaryFile = opts.summary || outFile.replace(/\.html$/, ".md");
+    const markdown = renderMarkdownSummary(report);
+    fs.writeFileSync(summaryFile, markdown, "utf-8");
+
     console.error(`\n${explanation.title}`);
     console.error(`${fileDiffs.length} files | +${totalAdditions} -${totalDeletions}`);
     if (explanation.fixes.length > 0) {
@@ -72,10 +89,21 @@ export async function run(opts: ExplainOptions): Promise<number> {
       console.error(`Risks: ${explanation.risks.map((r) => `[${r.level}] ${r.description}`).join("; ")}`);
     }
     console.error(`\nReport: ${outFile}`);
+    console.error(`Summary: ${summaryFile}`);
 
     return 0;
   } catch (err: any) {
     console.error(`Error: ${err.message}`);
     return 1;
   }
+}
+
+function buildAutoTitle(fileCount: number, additions: number, deletions: number): string {
+  const parts: string[] = [];
+  if (additions > 0 && deletions > 0) parts.push("Modified");
+  else if (additions > 0) parts.push("Added");
+  else if (deletions > 0) parts.push("Removed");
+  else parts.push("Changed");
+  parts.push(`${fileCount} file${fileCount !== 1 ? "s" : ""}`);
+  return `${parts.join(" ")} (+${additions} -${deletions})`;
 }

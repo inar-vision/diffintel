@@ -1,6 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { analyzeFile, extractDeclarations } from "../../src/explain/ast-diff";
+import { extractDeclarationsGeneric } from "../../src/explain/generic-extractor";
+import { hasLanguageForExt } from "../../src/parsing/parser";
 import { FileDiff } from "../../src/explain/types";
 
 describe("extractDeclarations", () => {
@@ -176,5 +178,132 @@ describe("analyzeFile", () => {
     };
     const analysis = analyzeFile(diff);
     assert.equal(analysis.structuralChanges.length, 0);
+  });
+
+  it("should analyze Python files when grammar is available", () => {
+    if (!hasLanguageForExt(".py")) return;
+    const diff: FileDiff = {
+      path: "app.py",
+      status: "added",
+      hunks: "",
+      additions: 5,
+      deletions: 0,
+      newContent: `import os\n\ndef hello():\n    return "world"\n\nclass UserService:\n    pass`,
+      recentHistory: [],
+    };
+    const analysis = analyzeFile(diff);
+    assert.equal(analysis.language, "python");
+    assert.ok(analysis.structuralChanges.length >= 3);
+    const types = analysis.structuralChanges.map((c) => c.type);
+    assert.ok(types.includes("import"));
+    assert.ok(types.includes("function"));
+    assert.ok(types.includes("class"));
+  });
+
+  it("should analyze Go files when grammar is available", () => {
+    if (!hasLanguageForExt(".go")) return;
+    const diff: FileDiff = {
+      path: "main.go",
+      status: "added",
+      hunks: "",
+      additions: 5,
+      deletions: 0,
+      newContent: `package main\n\nimport "fmt"\n\nfunc main() {\n\tfmt.Println("Hello")\n}\n\ntype Config struct {\n\tName string\n}`,
+      recentHistory: [],
+    };
+    const analysis = analyzeFile(diff);
+    assert.equal(analysis.language, "go");
+    assert.ok(analysis.structuralChanges.length >= 2);
+    const names = analysis.structuralChanges.map((c) => c.name);
+    assert.ok(names.includes("main"));
+    assert.ok(names.includes("Config"));
+  });
+
+  it("should return empty structural changes for unsupported extension", () => {
+    const diff: FileDiff = {
+      path: "data.yaml",
+      status: "modified",
+      hunks: "some diff",
+      additions: 1,
+      deletions: 1,
+      oldContent: "key: old",
+      newContent: "key: new",
+      recentHistory: [],
+    };
+    const analysis = analyzeFile(diff);
+    assert.equal(analysis.structuralChanges.length, 0);
+    assert.equal(analysis.language, null);
+  });
+});
+
+describe("multi-language extractDeclarations", () => {
+  it("should extract Python declarations", () => {
+    if (!hasLanguageForExt(".py")) return;
+    const decls = extractDeclarationsGeneric(
+      `import os\nfrom pathlib import Path\n\ndef greet(name):\n    return f"Hello {name}"\n\nclass Greeter:\n    pass\n\nMAX = 100`,
+      ".py",
+    );
+    const types = decls.map((d) => d.type);
+    assert.ok(types.includes("import"), "should find imports");
+    assert.ok(types.includes("function"), "should find functions");
+    assert.ok(types.includes("class"), "should find classes");
+    assert.ok(types.includes("variable"), "should find variables");
+  });
+
+  it("should extract Go declarations", () => {
+    if (!hasLanguageForExt(".go")) return;
+    const decls = extractDeclarationsGeneric(
+      `package main\n\nimport "fmt"\n\nfunc main() {\n\tfmt.Println("Hello")\n}\n\ntype Config struct {\n\tName string\n}\n\nvar Version = "1.0"\n\nconst MaxRetries = 3`,
+      ".go",
+    );
+    const names = decls.map((d) => d.name);
+    assert.ok(names.includes("main"), "should find main function");
+    assert.ok(names.includes("Config"), "should find Config type");
+    assert.ok(names.includes("Version"), "should find var");
+    assert.ok(names.includes("MaxRetries"), "should find const");
+  });
+
+  it("should extract Rust declarations", () => {
+    if (!hasLanguageForExt(".rs")) return;
+    const decls = extractDeclarationsGeneric(
+      `use std::io;\n\nfn main() {\n    println!("Hello");\n}\n\nstruct Config {\n    name: String,\n}\n\nconst MAX: u32 = 100;`,
+      ".rs",
+    );
+    const types = decls.map((d) => d.type);
+    assert.ok(types.includes("import"), "should find use declarations");
+    assert.ok(types.includes("function"), "should find functions");
+    assert.ok(types.includes("class"), "should find structs as class");
+    assert.ok(types.includes("variable"), "should find consts");
+  });
+
+  it("should extract C declarations", () => {
+    if (!hasLanguageForExt(".c")) return;
+    const decls = extractDeclarationsGeneric(
+      `#include <stdio.h>\n\nint counter = 0;\n\nvoid hello() {\n    printf("Hello\\n");\n}\n\nstruct Point {\n    int x;\n    int y;\n};`,
+      ".c",
+    );
+    const names = decls.map((d) => d.name);
+    assert.ok(names.includes("hello"), "should find function");
+    assert.ok(names.includes("Point"), "should find struct");
+  });
+
+  it("should extract Java declarations", () => {
+    if (!hasLanguageForExt(".java")) return;
+    const decls = extractDeclarationsGeneric(
+      `import java.util.List;\n\npublic class Main {\n    public void run() {}\n}`,
+      ".java",
+    );
+    const types = decls.map((d) => d.type);
+    assert.ok(types.includes("import"), "should find imports");
+    assert.ok(types.includes("class"), "should find classes");
+  });
+
+  it("should handle fallback for unconfigured but parseable extensions", () => {
+    // .jsx is configured, so this tests the normal path
+    const decls = extractDeclarationsGeneric(
+      `function App() { return null; }`,
+      ".jsx",
+    );
+    assert.ok(decls.length > 0);
   });
 });
