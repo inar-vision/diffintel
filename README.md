@@ -1,6 +1,6 @@
 # diffintel
 
-Structural diff explainer for pull requests. Parses changed JS/TS files with Tree-sitter, detects structural changes (functions, classes, imports, exports), and uses an LLM to generate a concise explanation with risk assessment. Outputs a self-contained HTML report.
+Structural diff explainer for pull requests. Parses changed JS/TS files with Tree-sitter, detects structural changes (functions, classes, imports, exports), and uses an LLM to generate a concise explanation with risk assessment. Outputs a self-contained HTML report. Helpful for getting a concise explanation on diffs. Inspired by the hard-to-ingest-code-masses the ai-agents write.
 
 ## Install
 
