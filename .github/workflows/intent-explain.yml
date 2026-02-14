@@ -1,12 +1,22 @@
 name: PR Explain
 
+# Modify the workflow to suit your needs.
+
 on:
   pull_request:
     types: [opened, synchronize]
+    # Uncomment to skip analysis for PRs that only touch docs/config:
+    # paths-ignore:
+    #   - '*.md'
+    #   - 'docs/**'
+    #   - '.gitignore'
+    #   - 'LICENSE'
 
 jobs:
   explain:
     runs-on: ubuntu-latest
+    # Uncomment to skip analysis when a PR has the "skip-analysis" label:
+    # if: "!contains(github.event.pull_request.labels.*.name, 'skip-analysis')"
     permissions:
       contents: read
       pull-requests: write
