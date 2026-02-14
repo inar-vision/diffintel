@@ -41,15 +41,27 @@ export interface FileAnalysis {
   rawDiff: string;
 }
 
+export interface Fix {
+  description: string;
+}
+
 export interface Risk {
   level: "low" | "medium" | "high";
   description: string;
 }
 
+export interface FileExplanation {
+  path: string;
+  summary: string;
+  notes: string[];
+}
+
 export interface LLMExplanation {
   title: string;
   description: string;
+  fixes: Fix[];
   risks: Risk[];
+  fileExplanations: FileExplanation[];
   tokenUsage: { input: number; output: number };
 }
 

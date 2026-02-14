@@ -1,21 +1,28 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { FileAnalysis, LLMExplanation, Risk } from "./types";
+import { FileAnalysis, LLMExplanation, Fix, Risk, FileExplanation } from "./types";
 
-const SYSTEM_PROMPT = `You analyze code changes. Respond ONLY with valid JSON. Be extremely concise.
+const SYSTEM_PROMPT = `You explain code changes for both developers and non-developers. Respond ONLY with valid JSON. Be concise but clear.
 
-IMPORTANT context rules for risk assessment:
-- You are given the BASE STATE (declarations before this diff) and RECENT GIT HISTORY (what happened to each file recently).
-- Use history to understand INTENT: if a recent commit removed something and this diff adds it back, that is a FIX/RESTORATION, not a breaking change.
-- RESTORATION: re-adding something that was recently removed is safe — do NOT flag as high risk.
-- NEW addition: only flag as breaking if it introduces behavior that never existed before.
-- REMOVAL: flag as risky if it removes established functionality.
-- When history shows a recent problematic change, frame this diff as fixing/reverting that change.`;
+Context rules:
+- You are given BASE STATE, RECENT GIT HISTORY (with diffs), and the current changes.
+- Use history to understand INTENT: if a recent commit broke something and this diff fixes it, categorize it as a FIX.
+- Clearly separate what was FIXED from what are genuine RISKS.
+- Write the description in plain language that a non-developer can understand.
+- For file explanations, describe what each file does and what changed in simple terms.`;
 
 const ACTION_ICON: Record<string, string> = {
   added: "+",
   removed: "-",
   modified: "~",
 };
+
+interface LLMResponse {
+  title: string;
+  description: string;
+  fixes: Array<{ description: string }>;
+  risks: Array<{ level: "low" | "medium" | "high"; description: string }>;
+  fileExplanations: Array<{ path: string; summary: string; notes?: string[] }>;
+}
 
 export async function explainChanges(
   files: FileAnalysis[],
@@ -53,7 +60,8 @@ export async function explainChanges(
     })
     .join("\n");
 
-  // Truncate diff to ~4000 chars, prioritizing modified files
+  const fileList = files.map((f) => `- ${f.path} (${f.status})`).join("\n");
+
   const truncatedDiff = truncateDiff(rawDiff, 4000);
 
   const prompt = `## Recent git history for changed files
@@ -65,18 +73,30 @@ ${baseSummary || "(new files only, no prior state)"}
 ## Structural changes (this diff)
 ${structuralSummary || "(no structural changes detected)"}
 
+## Files changed
+${fileList}
+
 ## Diff (truncated)
 ${truncatedDiff || "(empty diff)"}
 
 Respond with JSON:
-{ "title": "<60 char PR title>",
-  "description": "<2-4 sentences summarizing the changes>",
-  "risks": [{"level":"low|medium|high","description":"<one sentence>"}] }`;
+{
+  "title": "<60 char title for these changes>",
+  "description": "<2-4 sentences in plain language explaining what changed and why, suitable for non-developers>",
+  "fixes": [{"description": "<what was fixed or restored, one sentence>"}],
+  "risks": [{"level": "low|medium|high", "description": "<genuine new risk, one sentence>"}],
+  "fileExplanations": [{"path": "<file path>", "summary": "<1-2 sentences explaining what this file does and what changed>", "notes": ["<thing to consider about this specific change>"]}]
+}
+
+Rules:
+- "fixes": things this change REPAIRS or RESTORES (e.g., re-adding security that was removed). Can be empty.
+- "risks": only GENUINE new concerns, NOT things being fixed. If a change restores previous behavior, that is a fix, not a risk. Can be empty.
+- "fileExplanations": one entry per changed file, plain language. "notes" are file-specific things to consider — edge cases, testing suggestions, behavioral changes. Can be empty array if nothing notable.`;
 
   const client = new Anthropic();
   const message = await client.messages.create({
     model: "claude-sonnet-4-5-20250929",
-    max_tokens: 512,
+    max_tokens: 1024,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: prompt }],
   });
@@ -91,23 +111,28 @@ Respond with JSON:
     output: message.usage?.output_tokens || 0,
   };
 
-  let parsed: { title: string; description: string; risks: Risk[] };
+  let parsed: LLMResponse;
   try {
     const cleaned = text.replace(/^```json\s*/m, "").replace(/```\s*$/m, "").trim();
     parsed = JSON.parse(cleaned);
   } catch {
-    // Fallback if LLM doesn't return valid JSON
     parsed = {
       title: "Code changes",
       description: text.slice(0, 200),
+      fixes: [],
       risks: [{ level: "low", description: "LLM response was not valid JSON; showing raw text." }],
+      fileExplanations: [],
     };
   }
 
   return {
     title: parsed.title || "Code changes",
     description: parsed.description || "",
+    fixes: Array.isArray(parsed.fixes) ? parsed.fixes : [],
     risks: Array.isArray(parsed.risks) ? parsed.risks : [],
+    fileExplanations: Array.isArray(parsed.fileExplanations)
+      ? parsed.fileExplanations.map((fe) => ({ ...fe, notes: Array.isArray(fe.notes) ? fe.notes : [] }))
+      : [],
     tokenUsage,
   };
 }
@@ -115,7 +140,6 @@ Respond with JSON:
 function truncateDiff(diff: string, maxLen: number): string {
   if (diff.length <= maxLen) return diff;
 
-  // Split by file sections, keep as many as fit
   const sections = diff.split(/^diff --git /m).filter(Boolean);
   let result = "";
   for (const section of sections) {
