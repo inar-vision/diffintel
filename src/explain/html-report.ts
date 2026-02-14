@@ -1,4 +1,4 @@
-import { ExplainReport } from "./types";
+import { ExplainReport, StructuralChange } from "./types";
 
 function escapeHtml(str: string): string {
   return str
@@ -8,8 +8,20 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;");
 }
 
+const MAX_DIFF_LINES = 80;
+
 export function renderReport(report: ExplainReport): string {
   const { explanation, summary, files } = report;
+
+  // --- Structural summary ---
+  const structuralSummaryHtml = buildStructuralSummary(files);
+
+  // --- Impact section ---
+  const impactHtml = explanation.impact.length > 0
+    ? `<div class="impact-section">${explanation.impact.map((item) =>
+        `<span>${escapeHtml(item)}</span>`
+      ).join("")}</div>`
+    : "";
 
   // --- Fixes section ---
   const fixesHtml = explanation.fixes.length > 0
@@ -25,6 +37,9 @@ export function renderReport(report: ExplainReport): string {
         return `<div class="risk-item ${cls}"><span class="risk-label">${r.level}</span> ${escapeHtml(r.description)}</div>`;
       }).join("\n")
     : "";
+
+  // --- Common changes ---
+  const commonChangesHtml = buildCommonChanges(files);
 
   // --- Per-file detail cards ---
   // Build a map for both summary and notes
@@ -46,9 +61,7 @@ export function renderReport(report: ExplainReport): string {
       ? `<div class="file-notes"><div class="file-notes-label">Things to note</div><ul>${feData.notes.map((n) => `<li>${escapeHtml(n)}</li>`).join("")}</ul></div>`
       : "";
 
-    const diffHtml = f.rawDiff
-      ? `<details class="diff-toggle"><summary>View diff</summary><pre class="diff-block">${colorDiff(f.rawDiff)}</pre></details>`
-      : "";
+    const diffHtml = f.rawDiff ? renderDiff(f.rawDiff) : "";
 
     return `<div class="file-card">
       <div class="file-header">
@@ -101,7 +114,7 @@ export function renderReport(report: ExplainReport): string {
 
   /* Stats */
   .stats {
-    display: flex; gap: 20px; margin-bottom: 32px;
+    display: flex; gap: 20px; margin-bottom: 16px;
   }
   .stat {
     font-size: 13px; color: #777; font-weight: 500;
@@ -109,6 +122,24 @@ export function renderReport(report: ExplainReport): string {
   .stat b { font-size: 18px; color: #1a1a1a; margin-right: 3px; }
   .stat.additions b { color: #16a34a; }
   .stat.deletions b { color: #dc2626; }
+
+  /* Structural summary */
+  .structural-summary {
+    font-size: 14px; color: #555; margin-bottom: 8px;
+    padding: 10px 14px; background: #f8fafc; border-radius: 6px;
+  }
+
+  /* Impact */
+  .impact-section {
+    font-size: 14px; color: #555; margin-bottom: 28px;
+    padding: 10px 14px; background: #f8fafc; border-radius: 6px;
+  }
+  .impact-section span {
+    display: inline-block; margin-right: 12px;
+  }
+  .impact-section span::before {
+    content: "\\2022"; margin-right: 5px; color: #94a3b8;
+  }
 
   /* Description — article lede */
   .description {
@@ -154,6 +185,15 @@ export function renderReport(report: ExplainReport): string {
     font-size: 14px; color: #64748b;
   }
 
+  /* Common changes */
+  .common-changes { margin-bottom: 24px; }
+  .common-change-item {
+    padding: 6px 14px; font-size: 13px; color: #555;
+    border-left: 2px solid #cbd5e1; margin-bottom: 4px;
+  }
+  .common-change-item code { font-size: 12px; }
+  .common-change-files { font-size: 12px; color: #888; margin-left: 4px; }
+
   /* File cards */
   .file-card {
     border: 1px solid #e5e7eb; border-radius: 8px;
@@ -176,7 +216,7 @@ export function renderReport(report: ExplainReport): string {
 
   .file-summary {
     padding: 12px 14px; font-size: 14px; color: #444;
-    border-bottom: 1px solid #f5f5f5;
+    border-bottom: 1px solid #f5f5f5; font-weight: bold
   }
   .file-notes {
     padding: 10px 14px; background: #fafbff;
@@ -219,6 +259,11 @@ export function renderReport(report: ExplainReport): string {
     font-family: "SF Mono", Menlo, monospace;
     margin: 0; border-radius: 0;
   }
+  .diff-truncation {
+    padding: 6px 14px; font-size: 12px; color: #888;
+    border-top: 1px solid #333; background: #252525;
+  }
+  .diff-show-full { cursor: pointer; color: #60a5fa; text-decoration: underline; background: none; border: none; font-size: 12px; }
 
   /* Footer */
   .footer {
@@ -243,6 +288,10 @@ export function renderReport(report: ExplainReport): string {
     <div class="stat deletions"><b>-${summary.deletions}</b> removed</div>
   </div>
 
+  ${structuralSummaryHtml}
+
+  ${impactHtml}
+
   ${explanation.description
     ? `<div class="description">${escapeHtml(explanation.description)}</div>`
     : `<div class="ast-only-notice">Structural analysis only — set ANTHROPIC_API_KEY for AI-powered explanations.</div>`}
@@ -250,6 +299,8 @@ export function renderReport(report: ExplainReport): string {
   ${fixesHtml ? `<h2>What was fixed</h2>\n${fixesHtml}` : ""}
 
   ${risksHtml ? `<h2>Things to watch</h2>\n${risksHtml}` : ""}
+
+  ${commonChangesHtml}
 
   <h2>Changed files</h2>
   ${fileCards}
@@ -259,6 +310,84 @@ export function renderReport(report: ExplainReport): string {
   </div>
 </body>
 </html>`;
+}
+
+function renderDiff(rawDiff: string): string {
+  const lines = rawDiff.split("\n");
+  const totalLines = lines.length;
+
+  if (totalLines <= MAX_DIFF_LINES) {
+    return `<details class="diff-toggle"><summary>View diff</summary><pre class="diff-block">${colorDiff(rawDiff)}</pre></details>`;
+  }
+
+  const truncated = lines.slice(0, MAX_DIFF_LINES).join("\n");
+  const id = `diff-${Math.random().toString(36).slice(2, 8)}`;
+
+  return `<details class="diff-toggle"><summary>View diff</summary><pre class="diff-block" id="${id}-short">${colorDiff(truncated)}</pre><div class="diff-truncation" id="${id}-notice">Showing ${MAX_DIFF_LINES} of ${totalLines} lines <button class="diff-show-full" onclick="document.getElementById('${id}-short').style.display='none';document.getElementById('${id}-full').style.display='block';this.parentElement.style.display='none';">Show all</button></div><pre class="diff-block" id="${id}-full" style="display:none">${colorDiff(rawDiff)}</pre></details>`;
+}
+
+function buildStructuralSummary(files: ExplainReport["files"]): string {
+  const counts = new Map<string, number>();
+
+  for (const f of files) {
+    for (const c of f.structuralChanges) {
+      const key = `${c.action}:${c.type}`;
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+  }
+
+  if (counts.size === 0) return "";
+
+  const actionOrder = ["added", "modified", "removed"];
+  const parts: string[] = [];
+
+  for (const action of actionOrder) {
+    const items: string[] = [];
+    for (const [key, count] of counts) {
+      if (key.startsWith(action + ":")) {
+        const type = key.split(":")[1];
+        items.push(`${count} ${type}${count !== 1 ? "s" : ""}`);
+      }
+    }
+    if (items.length > 0) {
+      parts.push(`${items.join(", ")} ${action}`);
+    }
+  }
+
+  if (parts.length === 0) return "";
+
+  const filesWithChanges = files.filter((f) => f.structuralChanges.length > 0).length;
+  return `<div class="structural-summary">${parts.join(" &middot; ")} across ${filesWithChanges} file${filesWithChanges !== 1 ? "s" : ""}</div>`;
+}
+
+function buildCommonChanges(files: ExplainReport["files"]): string {
+  // Group changes by signature
+  const groups = new Map<string, { change: StructuralChange; filePaths: string[] }>();
+
+  for (const f of files) {
+    for (const c of f.structuralChanges) {
+      const sig = `${c.action}:${c.type}:${c.name}`;
+      const group = groups.get(sig);
+      if (group) {
+        group.filePaths.push(f.path);
+      } else {
+        groups.set(sig, { change: c, filePaths: [f.path] });
+      }
+    }
+  }
+
+  // Filter to changes appearing in 2+ files
+  const common = [...groups.values()].filter((g) => g.filePaths.length >= 2);
+  if (common.length === 0) return "";
+
+  const items = common.map((g) => {
+    const { change, filePaths } = g;
+    const actionSymbol = change.action === "added" ? "+" : change.action === "removed" ? "-" : "~";
+    const fileList = filePaths.map((p) => `<code>${escapeHtml(p)}</code>`).join(", ");
+    return `<div class="common-change-item">${actionSymbol} <code>${escapeHtml(change.name)}</code> (${change.type})<span class="common-change-files"> in ${fileList}</span></div>`;
+  }).join("\n");
+
+  return `<h2>Common changes</h2>\n${items}`;
 }
 
 function colorDiff(diff: string): string {

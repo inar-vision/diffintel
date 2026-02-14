@@ -3,6 +3,7 @@ import path from "path";
 import Parser from "tree-sitter";
 import JavaScript from "tree-sitter-javascript";
 import TypeScriptLanguages from "tree-sitter-typescript";
+import { languageConfigs } from "../explain/language-configs";
 
 export type { Parser };
 export type Tree = Parser.Tree;
@@ -30,14 +31,87 @@ function getParser(lang: Parser.Language): Parser {
   return p;
 }
 
-const extToLanguage: Record<string, Parser.Language> = {
+// ---------------------------------------------------------------------------
+// Dynamic language registry
+// ---------------------------------------------------------------------------
+
+// Static mappings for bundled grammars (always available)
+const staticLanguages: Record<string, Parser.Language> = {
   ".js": jsLanguage,
+  ".jsx": jsLanguage,
   ".ts": tsLanguage,
   ".tsx": tsxLanguage,
 };
 
+// Cache for dynamically loaded grammars
+const dynamicLanguageCache = new Map<string, Parser.Language | false>();
+
+function tryLoadGrammar(packageName: string, subProperty?: string): Parser.Language | null {
+  const cacheKey = subProperty ? `${packageName}.${subProperty}` : packageName;
+  if (dynamicLanguageCache.has(cacheKey)) {
+    const cached = dynamicLanguageCache.get(cacheKey);
+    return cached === false ? null : cached!;
+  }
+
+  try {
+    const mod = require(packageName);
+    const target = subProperty ? mod[subProperty] : (mod.default || mod);
+    const lang = target as unknown as Parser.Language;
+    dynamicLanguageCache.set(cacheKey, lang);
+    return lang;
+  } catch {
+    dynamicLanguageCache.set(cacheKey, false);
+    return null;
+  }
+}
+
+function getLanguageForExtDynamic(ext: string): Parser.Language | null {
+  // Check static mappings first
+  if (ext in staticLanguages) {
+    return staticLanguages[ext];
+  }
+
+  // Find config for this extension
+  const config = languageConfigs.find((c) => c.extensions.includes(ext));
+  if (!config) return null;
+
+  // Special handling for typescript package (has .typescript and .tsx sub-grammars)
+  if (config.treeSitterPackage === "tree-sitter-typescript") {
+    if (ext === ".tsx") return tsxLanguage;
+    return tsLanguage;
+  }
+
+  return tryLoadGrammar(config.treeSitterPackage, config.treeSitterSubProperty);
+}
+
+/** Check if a language grammar is available for the given extension */
+export function hasLanguageForExt(ext: string): boolean {
+  return getLanguageForExtDynamic(ext) !== null;
+}
+
 export function getLanguageForExt(ext: string): Parser.Language {
-  return extToLanguage[ext] || jsLanguage;
+  return getLanguageForExtDynamic(ext) || jsLanguage;
+}
+
+/** Get list of extensions with available grammars */
+export function getAvailableLanguages(): string[] {
+  const available: string[] = Object.keys(staticLanguages);
+
+  for (const config of languageConfigs) {
+    // Skip configs already covered by static mappings
+    if (config.extensions.every((e) => e in staticLanguages)) continue;
+
+    const lang = tryLoadGrammar(config.treeSitterPackage, config.treeSitterSubProperty);
+    if (lang) {
+      for (const ext of config.extensions) {
+        if (!available.includes(ext)) {
+          available.push(ext);
+        }
+      }
+    }
+  }
+
+  return available;
 }
 
 export function parseSource(

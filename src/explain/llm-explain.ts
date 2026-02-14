@@ -26,6 +26,7 @@ const ACTION_ICON: Record<string, string> = {
 interface LLMResponse {
   title: string;
   description: string;
+  impact: string[];
   fixes: Array<{ description: string }>;
   risks: Array<{ level: "low" | "medium" | "high"; description: string }>;
   fileExplanations: Array<{ path: string; summary: string; notes?: string[] }>;
@@ -93,12 +94,14 @@ Respond with JSON:
 {
   "title": "<60 char title for these changes>",
   "description": "<2-4 sentences in plain language explaining what changed and why, suitable for non-developers>",
+  "impact": ["<business/organizational impact statement>"],
   "fixes": [{"description": "<what was fixed or restored, one sentence>"}],
   "risks": [{"level": "low|medium|high", "description": "<genuine new risk, one sentence>"}],
   "fileExplanations": [{"path": "<file path>", "summary": "<1-2 sentences explaining what this file does and what changed>", "notes": ["<thing to consider about this specific change>"]}]
 }
 
 Rules:
+- "impact": short, stakeholder-level statements about what this change means for the product/team. Think about what matters to engineers, product, security, legal, and leadership. Examples: "Security protections restored", "Reduced risk of unauthorized access", "Improved reliability of product creation". 1-4 items. Can be empty for trivial changes.
 - "fixes": things this change REPAIRS or RESTORES (e.g., re-adding security that was removed). Can be empty.
 - "risks": only GENUINE new concerns, NOT things being fixed. If a change restores previous behavior, that is a fix, not a risk. Can be empty.
 - "fileExplanations": one entry per changed file, plain language. "notes" are file-specific things to consider — edge cases, testing suggestions, behavioral changes. Can be empty array if nothing notable.`;
@@ -130,6 +133,7 @@ Rules:
     parsed = {
       title: "Code changes",
       description: text.slice(0, 200),
+      impact: [],
       fixes: [],
       risks: [{ level: "low", description: "LLM response was not valid JSON; showing raw text." }],
       fileExplanations: [],
@@ -139,6 +143,7 @@ Rules:
   return {
     title: parsed.title || "Code changes",
     description: parsed.description || "",
+    impact: Array.isArray(parsed.impact) ? parsed.impact : [],
     fixes: Array.isArray(parsed.fixes) ? parsed.fixes : [],
     risks: Array.isArray(parsed.risks) ? parsed.risks : [],
     fileExplanations: Array.isArray(parsed.fileExplanations)

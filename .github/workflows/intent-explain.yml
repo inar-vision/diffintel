@@ -9,6 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,9 +25,29 @@ jobs:
       - name: Generate explain report
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: node dist/cli.js explain --base origin/${{ github.base_ref }} --out explain-report.html
+        run: node dist/cli.js explain --base origin/${{ github.base_ref }} --out explain-report.html --summary explain-summary.md
 
       - uses: actions/upload-artifact@v4
         with:
           name: explain-report
           path: explain-report.html
+
+      - name: Post or update PR comment
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COMMENT_TAG="<!-- diffintel-report -->"
+          BODY="$(cat explain-summary.md)"
+          FULL_BODY="${COMMENT_TAG}
+          ${BODY}"
+
+          # Find existing diffintel comment
+          EXISTING=$(gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            --jq ".[] | select(.body | startswith(\"${COMMENT_TAG}\")) | .id" | head -1)
+
+          if [ -n "$EXISTING" ]; then
+            gh api "repos/${{ github.repository }}/issues/comments/${EXISTING}" -X PATCH -f body="${FULL_BODY}"
+          else
+            gh pr comment "${{ github.event.pull_request.number }}" --body "${FULL_BODY}"
+          fi
