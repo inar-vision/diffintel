@@ -14,6 +14,7 @@ program
   .option("--base <ref>", "Base ref to diff from (default: origin/main)")
   .option("--head <ref>", "Head ref to diff to (default: HEAD)")
   .option("--out <file>", "Output HTML file path (default: explain-report.html)")
+  .option("--summary <file>", "Output markdown summary file path (default: <out>.md)")
   .action(async (opts) => {
     require("dotenv").config();
     const { run } = require("./commands/explain");

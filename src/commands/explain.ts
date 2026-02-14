@@ -3,12 +3,14 @@ import { getDiff } from "../explain/git-diff";
 import { analyzeFile } from "../explain/ast-diff";
 import { explainChanges } from "../explain/llm-explain";
 import { renderReport } from "../explain/html-report";
+import { renderMarkdownSummary } from "../explain/markdown-summary";
 import { ExplainReport, LLMExplanation } from "../explain/types";
 
 interface ExplainOptions {
   base?: string;
   head?: string;
   out?: string;
+  summary?: string;
 }
 
 export async function run(opts: ExplainOptions): Promise<number> {
@@ -49,6 +51,7 @@ export async function run(opts: ExplainOptions): Promise<number> {
       explanation = {
         title: buildAutoTitle(fileDiffs.length, totalAdditions, totalDeletions),
         description: "",
+        impact: [],
         fixes: [],
         risks: [],
         fileExplanations: [],
@@ -72,6 +75,11 @@ export async function run(opts: ExplainOptions): Promise<number> {
     const html = renderReport(report);
     fs.writeFileSync(outFile, html, "utf-8");
 
+    // Generate markdown summary alongside HTML
+    const summaryFile = opts.summary || outFile.replace(/\.html$/, ".md");
+    const markdown = renderMarkdownSummary(report);
+    fs.writeFileSync(summaryFile, markdown, "utf-8");
+
     console.error(`\n${explanation.title}`);
     console.error(`${fileDiffs.length} files | +${totalAdditions} -${totalDeletions}`);
     if (explanation.fixes.length > 0) {
@@ -81,6 +89,7 @@ export async function run(opts: ExplainOptions): Promise<number> {
       console.error(`Risks: ${explanation.risks.map((r) => `[${r.level}] ${r.description}`).join("; ")}`);
     }
     console.error(`\nReport: ${outFile}`);
+    console.error(`Summary: ${summaryFile}`);
 
     return 0;
   } catch (err: any) {

@@ -59,6 +59,7 @@ export interface FileExplanation {
 export interface LLMExplanation {
   title: string;
   description: string;
+  impact: string[];
   fixes: Fix[];
   risks: Risk[];
   fileExplanations: FileExplanation[];

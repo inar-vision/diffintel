@@ -1,19 +1,16 @@
 import path from "path";
-import { parseSource, type SyntaxNode } from "../parsing/parser";
-import { FileDiff, FileAnalysis, StructuralChange, ChangeType } from "./types";
-
-interface Declaration {
-  name: string;
-  type: ChangeType;
-  text: string;
-  startLine: number;
-}
-
-const SUPPORTED_EXTS = new Set([".js", ".ts", ".tsx", ".jsx"]);
+import { FileDiff, FileAnalysis, StructuralChange } from "./types";
+import { extractDeclarationsGeneric } from "./generic-extractor";
+import { getConfigForExtension } from "./language-configs";
+import { hasLanguageForExt } from "../parsing/parser";
 
 export function analyzeFile(diff: FileDiff): FileAnalysis {
   const ext = path.extname(diff.path);
-  if (!SUPPORTED_EXTS.has(ext)) {
+  const config = getConfigForExtension(ext);
+  const parseable = hasLanguageForExt(ext);
+
+  // If no config and not parseable, return without structural analysis
+  if (!config && !parseable) {
     return {
       path: diff.path,
       status: diff.status,
@@ -25,7 +22,7 @@ export function analyzeFile(diff: FileDiff): FileAnalysis {
     };
   }
 
-  const language = ext.replace(".", "");
+  const language = config?.id || ext.replace(".", "");
   const structuralChanges: StructuralChange[] = [];
 
   // Extract base declarations for context (what existed before this change)
@@ -106,85 +103,6 @@ export function analyzeFile(diff: FileDiff): FileAnalysis {
   };
 }
 
-export function extractDeclarations(source: string, ext: string): Declaration[] {
-  if (!source.trim()) return [];
-
-  const { tree } = parseSource(source, ext);
-  const decls: Declaration[] = [];
-  const root = tree.rootNode;
-
-  for (let i = 0; i < root.childCount; i++) {
-    const node = root.child(i)!;
-    const extracted = extractFromNode(node);
-    if (extracted) {
-      decls.push(...extracted);
-    }
-  }
-
-  return decls;
-}
-
-function extractFromNode(node: SyntaxNode): Declaration[] | null {
-  const type = node.type;
-
-  if (type === "function_declaration") {
-    const name = node.childForFieldName("name")?.text || "<anonymous>";
-    return [{ name, type: "function", text: node.text, startLine: node.startPosition.row + 1 }];
-  }
-
-  if (type === "class_declaration") {
-    const name = node.childForFieldName("name")?.text || "<anonymous>";
-    return [{ name, type: "class", text: node.text, startLine: node.startPosition.row + 1 }];
-  }
-
-  if (type === "import_statement") {
-    const source = node.childForFieldName("source")?.text || node.text;
-    return [{ name: source, type: "import", text: node.text, startLine: node.startPosition.row + 1 }];
-  }
-
-  if (type === "export_statement") {
-    // Named export with declaration inside
-    const decl = node.childForFieldName("declaration");
-    if (decl) {
-      const inner = extractFromNode(decl);
-      if (inner) {
-        return inner.map((d) => ({ ...d, type: "export" as ChangeType }));
-      }
-    }
-    const name = node.text.slice(0, 60);
-    return [{ name, type: "export", text: node.text, startLine: node.startPosition.row + 1 }];
-  }
-
-  if (type === "variable_declaration" || type === "lexical_declaration") {
-    const results: Declaration[] = [];
-    for (let i = 0; i < node.childCount; i++) {
-      const child = node.child(i)!;
-      if (child.type === "variable_declarator") {
-        const name = child.childForFieldName("name")?.text || "<unknown>";
-        // Check if value is an arrow function or function expression
-        const value = child.childForFieldName("value");
-        const isFn = value && (value.type === "arrow_function" || value.type === "function");
-        results.push({
-          name,
-          type: isFn ? "function" : "variable",
-          text: node.text,
-          startLine: node.startPosition.row + 1,
-        });
-      }
-    }
-    if (results.length) return results;
-  }
-
-  // Expression statements like module.exports = ...
-  if (type === "expression_statement") {
-    const expr = node.child(0);
-    if (expr?.type === "assignment_expression") {
-      const left = expr.childForFieldName("left");
-      if (left?.text?.startsWith("module.exports")) {
-        return [{ name: "module.exports", type: "export", text: node.text, startLine: node.startPosition.row + 1 }];
-      }
-    }
-  }
-
-  return null;
+export function extractDeclarations(source: string, ext: string) {
+  return extractDeclarationsGeneric(source, ext);
 }
