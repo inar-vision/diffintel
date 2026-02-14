@@ -3,11 +3,13 @@ import { FileAnalysis, LLMExplanation, Risk } from "./types";
 
 const SYSTEM_PROMPT = `You analyze code changes. Respond ONLY with valid JSON. Be extremely concise.
 
-IMPORTANT: You are given the base state (what existed before the diff). Use it to distinguish:
-- RESTORATION: if a change re-adds something that existed in the base, it is a FIX, not a breaking change.
-- NEW addition: only flag as breaking if it changes behavior that did NOT exist in the base.
-- REMOVAL: only flag as risky if it removes something that existed in the base.
-A diff that restores the base state is by definition safe.`;
+IMPORTANT context rules for risk assessment:
+- You are given the BASE STATE (declarations before this diff) and RECENT GIT HISTORY (what happened to each file recently).
+- Use history to understand INTENT: if a recent commit removed something and this diff adds it back, that is a FIX/RESTORATION, not a breaking change.
+- RESTORATION: re-adding something that was recently removed is safe — do NOT flag as high risk.
+- NEW addition: only flag as breaking if it introduces behavior that never existed before.
+- REMOVAL: flag as risky if it removes established functionality.
+- When history shows a recent problematic change, frame this diff as fixing/reverting that change.`;
 
 const ACTION_ICON: Record<string, string> = {
   added: "+",
@@ -19,6 +21,16 @@ export async function explainChanges(
   files: FileAnalysis[],
   rawDiff: string,
 ): Promise<LLMExplanation> {
+  const historySummary = files
+    .filter((f) => f.recentHistory.length > 0)
+    .map((f) => {
+      const entries = f.recentHistory
+        .map((h) => `  - ${h.hash} ${h.message} (${h.age})`)
+        .join("\n");
+      return `- ${f.path}:\n${entries}`;
+    })
+    .join("\n");
+
   const baseSummary = files
     .filter((f) => f.baseDeclarations.length > 0)
     .map((f) => `- ${f.path}: ${f.baseDeclarations.join(", ")}`)
@@ -37,7 +49,10 @@ export async function explainChanges(
   // Truncate diff to ~4000 chars, prioritizing modified files
   const truncatedDiff = truncateDiff(rawDiff, 4000);
 
-  const prompt = `## Base state (what existed BEFORE this diff)
+  const prompt = `## Recent git history for changed files
+${historySummary || "(no prior history)"}
+
+## Base state (what existed BEFORE this diff)
 ${baseSummary || "(new files only, no prior state)"}
 
 ## Structural changes (this diff)

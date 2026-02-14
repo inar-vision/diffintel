@@ -1,5 +1,11 @@
 export type FileStatus = "added" | "modified" | "deleted" | "renamed";
 
+export interface FileHistoryEntry {
+  hash: string;
+  message: string;
+  age: string;
+}
+
 export interface FileDiff {
   path: string;
   oldPath?: string;
@@ -9,6 +15,7 @@ export interface FileDiff {
   newContent?: string;
   additions: number;
   deletions: number;
+  recentHistory: FileHistoryEntry[];
 }
 
 export type ChangeAction = "added" | "removed" | "modified";
@@ -29,6 +36,7 @@ export interface FileAnalysis {
   language: string | null;
   structuralChanges: StructuralChange[];
   baseDeclarations: string[];
+  recentHistory: FileHistoryEntry[];
   rawDiff: string;
 }
 

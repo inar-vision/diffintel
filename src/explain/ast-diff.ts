@@ -20,6 +20,7 @@ export function analyzeFile(diff: FileDiff): FileAnalysis {
       language: null,
       structuralChanges: [],
       baseDeclarations: [],
+      recentHistory: [],
       rawDiff: diff.hunks,
     };
   }
@@ -100,6 +101,7 @@ export function analyzeFile(diff: FileDiff): FileAnalysis {
     language,
     structuralChanges,
     baseDeclarations,
+    recentHistory: [],
     rawDiff: diff.hunks,
   };
 }
