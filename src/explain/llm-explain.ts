@@ -109,7 +109,7 @@ Rules:
   const client = new Anthropic();
   const message = await client.messages.create({
     model: "claude-sonnet-4-5-20250929",
-    max_tokens: 1024,
+    max_tokens: 4096,
     temperature: 0,
     system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: prompt }],
