@@ -1,6 +1,7 @@
 node_modules/
 .env
 dist/
+*.tgz
 
 # Generated reports
 explain-report.html

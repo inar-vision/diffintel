@@ -1,7 +1,13 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { FileAnalysis, LLMExplanation, Risk } from "./types";
 
-const SYSTEM_PROMPT = "You analyze code changes. Respond ONLY with valid JSON. Be extremely concise.";
+const SYSTEM_PROMPT = `You analyze code changes. Respond ONLY with valid JSON. Be extremely concise.
+
+IMPORTANT: You are given the base state (what existed before the diff). Use it to distinguish:
+- RESTORATION: if a change re-adds something that existed in the base, it is a FIX, not a breaking change.
+- NEW addition: only flag as breaking if it changes behavior that did NOT exist in the base.
+- REMOVAL: only flag as risky if it removes something that existed in the base.
+A diff that restores the base state is by definition safe.`;
 
 const ACTION_ICON: Record<string, string> = {
   added: "+",
@@ -13,6 +19,11 @@ export async function explainChanges(
   files: FileAnalysis[],
   rawDiff: string,
 ): Promise<LLMExplanation> {
+  const baseSummary = files
+    .filter((f) => f.baseDeclarations.length > 0)
+    .map((f) => `- ${f.path}: ${f.baseDeclarations.join(", ")}`)
+    .join("\n");
+
   const structuralSummary = files
     .filter((f) => f.structuralChanges.length > 0)
     .map((f) => {
@@ -26,7 +37,10 @@ export async function explainChanges(
   // Truncate diff to ~4000 chars, prioritizing modified files
   const truncatedDiff = truncateDiff(rawDiff, 4000);
 
-  const prompt = `## Structural changes
+  const prompt = `## Base state (what existed BEFORE this diff)
+${baseSummary || "(new files only, no prior state)"}
+
+## Structural changes (this diff)
 ${structuralSummary || "(no structural changes detected)"}
 
 ## Diff (truncated)

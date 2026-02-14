@@ -28,6 +28,7 @@ export interface FileAnalysis {
   status: FileStatus;
   language: string | null;
   structuralChanges: StructuralChange[];
+  baseDeclarations: string[];
   rawDiff: string;
 }
 
