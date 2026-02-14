@@ -5,9 +5,11 @@
   "bin": {
     "diffintel": "dist/cli.js"
   },
+  "files": ["dist"],
   "scripts": {
     "build": "tsc",
-    "test": "tsc && node --import tsx --test test/unit/*.test.ts"
+    "test": "tsc && node --import tsx --test test/unit/*.test.ts",
+    "prepublishOnly": "tsc"
   },
   "keywords": ["diff", "pull-request", "code-review", "ast", "tree-sitter", "ai", "llm"],
   "license": "MIT",
