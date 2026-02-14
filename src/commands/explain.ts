@@ -33,7 +33,11 @@ export async function run(opts: ExplainOptions): Promise<number> {
 
     console.error(`Found ${fileDiffs.length} changed file(s). Analyzing...`);
 
-    const fileAnalyses = fileDiffs.map(analyzeFile);
+    const fileAnalyses = fileDiffs.map((fd) => {
+      const analysis = analyzeFile(fd);
+      analysis.recentHistory = fd.recentHistory;
+      return analysis;
+    });
 
     const totalChanges = fileAnalyses.reduce((sum, f) => sum + f.structuralChanges.length, 0);
     console.error(`Detected ${totalChanges} structural change(s). Calling LLM...`);

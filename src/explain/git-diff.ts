@@ -1,5 +1,5 @@
 import { execSync } from "child_process";
-import { FileDiff, FileStatus } from "./types";
+import { FileDiff, FileHistoryEntry, FileStatus } from "./types";
 
 /**
  * Get the unified diff between two refs.
@@ -32,6 +32,8 @@ export function getDiff(baseRef: string, headRef?: string): { files: FileDiff[];
       ? getFileContent(headRef || "HEAD", fs.path)
       : undefined;
 
+    const recentHistory = getFileHistory(fs.oldPath || fs.path, baseRef);
+
     merged.push({
       path: fs.path,
       oldPath: fs.oldPath,
@@ -41,6 +43,7 @@ export function getDiff(baseRef: string, headRef?: string): { files: FileDiff[];
       newContent,
       additions: diff.additions,
       deletions: diff.deletions,
+      recentHistory,
     });
   }
 
@@ -117,5 +120,20 @@ function getFileContent(ref: string, filePath: string): string | undefined {
     return execSync(`git show ${ref}:${filePath}`, { encoding: "utf-8" });
   } catch {
     return undefined;
+  }
+}
+
+function getFileHistory(filePath: string, upToRef: string, count: number = 5): FileHistoryEntry[] {
+  try {
+    const log = execSync(
+      `git log --format="%h|%s|%cr" -${count} ${upToRef} -- ${filePath}`,
+      { encoding: "utf-8" },
+    );
+    return log.trim().split("\n").filter(Boolean).map((line) => {
+      const [hash, message, age] = line.split("|");
+      return { hash, message, age };
+    });
+  } catch {
+    return [];
   }
 }
