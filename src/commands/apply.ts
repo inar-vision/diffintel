@@ -51,6 +51,7 @@ async function run(options: ApplyOptions = {}): Promise<number> {
     return 1;
   }
 
+  const config = loadConfig();
   const report = JSON.parse(fs.readFileSync(reportPath, "utf-8"));
   const dryRun = options.dryRun || false;
   const issues = extractFeatures(report);
@@ -75,10 +76,37 @@ async function run(options: ApplyOptions = {}): Promise<number> {
 
   let result;
   try {
-    result = await apply(report, { dryRun });
+    result = await apply(report, { dryRun, config });
   } catch (err: any) {
     console.error(`Apply failed: ${err.message}`);
     return 2;
+  }
+
+  // Report unfixable issues
+  if (result.unfixableIssues.length > 0) {
+    console.error(`\n${result.unfixableIssues.length} unfixable issue(s) (require manual intervention):`);
+    for (const issue of result.unfixableIssues) {
+      console.error(`  [${issue.type}] ${issue.id}: ${issue.reason}`);
+    }
+  }
+
+  // All issues were unfixable — no LLM call was made
+  if (!result.applied && !result.dryRun) {
+    const summary = {
+      applied: false,
+      changedFiles: [],
+      unfixableIssues: result.unfixableIssues,
+      complianceBefore,
+      complianceAfter: null,
+      tokenUsage: result.tokenUsage,
+    };
+    fs.writeFileSync(
+      "apply-result.json",
+      JSON.stringify(summary, null, 2),
+      "utf-8"
+    );
+    console.error("Apply result written to apply-result.json");
+    return 0;
   }
 
   console.error(
@@ -102,7 +130,6 @@ async function run(options: ApplyOptions = {}): Promise<number> {
   console.error(`Changed files: ${result.changedFiles.join(", ")}`);
 
   // Validation loop: re-run check to verify drift was resolved
-  const config = loadConfig();
   const intentFile = report.meta?.intentFile || config.intentFile;
   const scanDir = config.scanDir;
 
@@ -156,6 +183,7 @@ async function run(options: ApplyOptions = {}): Promise<number> {
     remainingConstraintFailures,
     resolvedContracts,
     remainingContractViolations,
+    unfixableIssues: result.unfixableIssues,
     complianceBefore,
     complianceAfter,
     tokenUsage: result.tokenUsage,

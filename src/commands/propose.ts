@@ -1,5 +1,6 @@
 import fs from "fs";
 import { propose, extractFeatures, hasIssues } from "../reconcile/reconciler";
+import { loadConfig } from "../config";
 
 interface ProposeOptions {
   report?: string;
@@ -20,6 +21,7 @@ async function run(options: ProposeOptions = {}): Promise<number> {
     return 1;
   }
 
+  const config = loadConfig();
   const report = JSON.parse(fs.readFileSync(reportPath, "utf-8"));
   const issues = extractFeatures(report);
 
@@ -28,11 +30,25 @@ async function run(options: ProposeOptions = {}): Promise<number> {
     return 0;
   }
 
-  const result = await propose(report);
-  console.log(result.text);
-  console.error(
-    `Token usage: ${result.tokenUsage.input} input, ${result.tokenUsage.output} output`
-  );
+  const result = await propose(report, { config });
+
+  if (result.text) {
+    console.log(result.text);
+  }
+
+  if (result.unfixableIssues.length > 0) {
+    console.error(`\n${result.unfixableIssues.length} unfixable issue(s) (require manual intervention):`);
+    for (const issue of result.unfixableIssues) {
+      console.error(`  [${issue.type}] ${issue.id}: ${issue.reason}`);
+    }
+  }
+
+  if (result.tokenUsage.input > 0 || result.tokenUsage.output > 0) {
+    console.error(
+      `Token usage: ${result.tokenUsage.input} input, ${result.tokenUsage.output} output`
+    );
+  }
+
   return 0;
 }
 

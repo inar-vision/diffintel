@@ -203,6 +203,12 @@ export interface CheckResult {
   constraintResults?: ConstraintResult[];
 }
 
+export interface UnfixableIssue {
+  type: "constraint" | "contract" | "missing";
+  id: string;
+  reason: string;
+}
+
 export interface ValidationResult {
   valid: boolean;
   errors: string[];

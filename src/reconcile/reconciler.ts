@@ -2,7 +2,8 @@ import fs from "fs";
 import Anthropic from "@anthropic-ai/sdk";
 import { buildProposalPrompt, buildApplyPrompt, SYSTEM_PROMPT } from "./prompt-builder";
 import { stripMarkdownFences, validateApplyResult } from "./validator";
-import { Report, ReportFeature, ConstraintResult } from "../types";
+import { Report, ReportFeature, ConstraintResult, UnfixableIssue, Config } from "../types";
+import { classifyIssues } from "./classifier";
 
 interface ExtractedIssues {
   missing: ReportFeature[];
@@ -118,14 +119,38 @@ function extractTokenUsage(message: Anthropic.Message): TokenUsage {
   };
 }
 
-async function propose(report: Report): Promise<{ text: string; tokenUsage: TokenUsage }> {
+interface ProposeResult {
+  text: string;
+  tokenUsage: TokenUsage;
+  unfixableIssues: UnfixableIssue[];
+}
+
+async function propose(report: Report, options: { config?: Config } = {}): Promise<ProposeResult> {
   const { missing, present, failedConstraints, contractViolations } = extractFeatures(report);
   const constraintFiles = failedConstraints.flatMap(
     (cr) => cr.violations.filter((v) => v.file).map((v) => v.file!)
   );
   const sourceContext = collectSourceContext(present, constraintFiles);
+
+  const classified = classifyIssues(
+    missing, failedConstraints, contractViolations, sourceContext, options.config,
+  );
+  const { fixable, unfixable } = classified;
+
+  const hasFixable = fixable.missing.length > 0
+    || fixable.failedConstraints.length > 0
+    || fixable.contractViolations.length > 0;
+
+  if (!hasFixable) {
+    return {
+      text: "",
+      tokenUsage: { input: 0, output: 0 },
+      unfixableIssues: unfixable,
+    };
+  }
+
   const { sourceSection, missingSection, constraintSection, contractSection } =
-    buildSections(missing, sourceContext, failedConstraints, contractViolations);
+    buildSections(fixable.missing, sourceContext, fixable.failedConstraints, fixable.contractViolations);
   const prompt = buildProposalPrompt(missingSection, sourceSection, report, constraintSection, contractSection);
 
   const client = new Anthropic();
@@ -141,7 +166,7 @@ async function propose(report: Report): Promise<{ text: string; tokenUsage: Toke
     .map((block) => block.text)
     .join("\n");
 
-  return { text, tokenUsage: extractTokenUsage(message) };
+  return { text, tokenUsage: extractTokenUsage(message), unfixableIssues: unfixable };
 }
 
 interface ApplyResult {
@@ -153,17 +178,40 @@ interface ApplyResult {
   fixedConstraints: string[];
   fixedContracts: string[];
   tokenUsage: TokenUsage;
+  unfixableIssues: UnfixableIssue[];
 }
 
-async function apply(report: Report, options: { dryRun?: boolean } = {}): Promise<ApplyResult> {
+async function apply(report: Report, options: { dryRun?: boolean; config?: Config } = {}): Promise<ApplyResult> {
   const dryRun = options.dryRun || false;
   const { missing, present, failedConstraints, contractViolations } = extractFeatures(report);
   const constraintFiles = failedConstraints.flatMap(
     (cr) => cr.violations.filter((v) => v.file).map((v) => v.file!)
   );
   const sourceContext = collectSourceContext(present, constraintFiles);
+
+  const classified = classifyIssues(
+    missing, failedConstraints, contractViolations, sourceContext, options.config,
+  );
+  const { fixable, unfixable } = classified;
+
+  const hasFixable = fixable.missing.length > 0
+    || fixable.failedConstraints.length > 0
+    || fixable.contractViolations.length > 0;
+
+  if (!hasFixable) {
+    return {
+      applied: false,
+      changedFiles: [],
+      missingFeatures: missing.map((f) => f.id),
+      fixedConstraints: failedConstraints.map((cr) => cr.featureId),
+      fixedContracts: contractViolations.map((f) => f.id),
+      tokenUsage: { input: 0, output: 0 },
+      unfixableIssues: unfixable,
+    };
+  }
+
   const { sourceSection, missingSection, constraintSection, contractSection } =
-    buildSections(missing, sourceContext, failedConstraints, contractViolations);
+    buildSections(fixable.missing, sourceContext, fixable.failedConstraints, fixable.contractViolations);
   const allowedFiles = Object.keys(sourceContext);
   const prompt = buildApplyPrompt(missingSection, sourceSection, allowedFiles, report, constraintSection, contractSection);
 
@@ -194,8 +242,8 @@ async function apply(report: Report, options: { dryRun?: boolean } = {}): Promis
     throw new Error(`Validation failed: ${validation.error}`);
   }
 
-  const targetedConstraints = failedConstraints.map((cr) => cr.featureId);
-  const targetedContracts = contractViolations.map((f) => f.id);
+  const targetedConstraints = fixable.failedConstraints.map((cr) => cr.featureId);
+  const targetedContracts = fixable.contractViolations.map((f) => f.id);
 
   if (dryRun) {
     return {
@@ -203,10 +251,11 @@ async function apply(report: Report, options: { dryRun?: boolean } = {}): Promis
       dryRun: true,
       changedFiles: Object.keys(parsed),
       proposedChanges: parsed,
-      missingFeatures: missing.map((f) => f.id),
+      missingFeatures: fixable.missing.map((f) => f.id),
       fixedConstraints: targetedConstraints,
       fixedContracts: targetedContracts,
       tokenUsage,
+      unfixableIssues: unfixable,
     };
   }
 
@@ -220,11 +269,13 @@ async function apply(report: Report, options: { dryRun?: boolean } = {}): Promis
   return {
     applied: true,
     changedFiles,
-    missingFeatures: missing.map((f) => f.id),
+    missingFeatures: fixable.missing.map((f) => f.id),
     fixedConstraints: targetedConstraints,
     fixedContracts: targetedContracts,
     tokenUsage,
+    unfixableIssues: unfixable,
   };
 }
 
 export { collectSourceContext, extractFeatures, hasIssues, buildSections, propose, apply };
+export type { ExtractedIssues, ApplyResult, TokenUsage };
