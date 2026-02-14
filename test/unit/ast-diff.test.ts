@@ -67,6 +67,7 @@ describe("analyzeFile", () => {
     const analysis = analyzeFile(diff);
     assert.equal(analysis.structuralChanges.length, 2);
     assert.ok(analysis.structuralChanges.every((c) => c.action === "added"));
+    assert.deepEqual(analysis.baseDeclarations, []);
   });
 
   it("should mark all declarations as removed for deleted files", () => {
@@ -97,6 +98,7 @@ describe("analyzeFile", () => {
     const added = analysis.structuralChanges.filter((c) => c.action === "added");
     assert.equal(added.length, 1);
     assert.equal(added[0].name, "newFn");
+    assert.deepEqual(analysis.baseDeclarations, ["existing (function)"]);
   });
 
   it("should detect removed function in modified file", () => {

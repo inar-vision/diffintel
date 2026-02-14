@@ -19,12 +19,17 @@ export function analyzeFile(diff: FileDiff): FileAnalysis {
       status: diff.status,
       language: null,
       structuralChanges: [],
+      baseDeclarations: [],
       rawDiff: diff.hunks,
     };
   }
 
   const language = ext.replace(".", "");
   const structuralChanges: StructuralChange[] = [];
+
+  // Extract base declarations for context (what existed before this change)
+  const baseDecls = diff.oldContent ? extractDeclarations(diff.oldContent, ext) : [];
+  const baseDeclarations = baseDecls.map((d) => `${d.name} (${d.type})`);
 
   if (diff.status === "added" && diff.newContent) {
     const decls = extractDeclarations(diff.newContent, ext);
@@ -38,8 +43,7 @@ export function analyzeFile(diff: FileDiff): FileAnalysis {
       });
     }
   } else if (diff.status === "deleted" && diff.oldContent) {
-    const decls = extractDeclarations(diff.oldContent, ext);
-    for (const d of decls) {
+    for (const d of baseDecls) {
       structuralChanges.push({
         file: diff.path,
         type: d.type,
@@ -49,10 +53,9 @@ export function analyzeFile(diff: FileDiff): FileAnalysis {
       });
     }
   } else if ((diff.status === "modified" || diff.status === "renamed") && diff.oldContent && diff.newContent) {
-    const oldDecls = extractDeclarations(diff.oldContent, ext);
     const newDecls = extractDeclarations(diff.newContent, ext);
 
-    const oldMap = new Map(oldDecls.map((d) => [d.name, d]));
+    const oldMap = new Map(baseDecls.map((d) => [d.name, d]));
     const newMap = new Map(newDecls.map((d) => [d.name, d]));
 
     // Removed declarations
@@ -96,6 +99,7 @@ export function analyzeFile(diff: FileDiff): FileAnalysis {
     status: diff.status,
     language,
     structuralChanges,
+    baseDeclarations,
     rawDiff: diff.hunks,
   };
 }
