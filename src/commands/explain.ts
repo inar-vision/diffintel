@@ -92,8 +92,9 @@ export async function run(opts: ExplainOptions): Promise<number> {
     console.error(`Summary: ${summaryFile}`);
 
     return 0;
-  } catch (err: any) {
-    console.error(`Error: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`Error: ${message}`);
     return 1;
   }
 }
