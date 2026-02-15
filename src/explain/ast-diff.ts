@@ -3,6 +3,7 @@ import { FileDiff, FileAnalysis, StructuralChange } from "./types";
 import { extractDeclarationsGeneric } from "./generic-extractor";
 import { getConfigForExtension } from "./language-configs";
 import { hasLanguageForExt } from "../parsing/parser";
+import { extractControlFlow, parseChangedLines } from "./control-flow";
 
 export function analyzeFile(diff: FileDiff): FileAnalysis {
   const ext = path.extname(diff.path);
@@ -16,6 +17,7 @@ export function analyzeFile(diff: FileDiff): FileAnalysis {
       status: diff.status,
       language: null,
       structuralChanges: [],
+      controlFlowAnnotations: [],
       baseDeclarations: [],
       recentHistory: [],
       rawDiff: diff.hunks,
@@ -92,11 +94,17 @@ export function analyzeFile(diff: FileDiff): FileAnalysis {
     }
   }
 
+  const changedLines = parseChangedLines(diff.hunks);
+  const controlFlowAnnotations = diff.newContent
+    ? extractControlFlow(diff.newContent, ext, changedLines)
+    : [];
+
   return {
     path: diff.path,
     status: diff.status,
     language,
     structuralChanges,
+    controlFlowAnnotations,
     baseDeclarations,
     recentHistory: [],
     rawDiff: diff.hunks,

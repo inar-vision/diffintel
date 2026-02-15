@@ -37,6 +37,7 @@ function makeReport(overrides: Partial<ExplainReport> = {}): ExplainReport {
         structuralChanges: [
           { file: "src/auth.ts", type: "function", action: "modified", name: "validateToken" },
         ],
+        controlFlowAnnotations: [],
         baseDeclarations: ["validateToken (function)"],
         recentHistory: [],
         rawDiff: "",
