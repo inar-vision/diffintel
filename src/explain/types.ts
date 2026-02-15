@@ -85,4 +85,11 @@ export interface ExplainReport {
   };
   explanation: LLMExplanation;
   files: FileAnalysis[];
+  performance?: {
+    gitFetchMs: number;
+    astAnalysisMs: number;
+    llmCallMs: number;
+    totalMs: number;
+    batchCount: number;
+  };
 }

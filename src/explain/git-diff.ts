@@ -1,5 +1,133 @@
-import { execFileSync } from "child_process";
+import { execFileSync, execFile as execFileCb } from "child_process";
+import { promisify } from "util";
 import { FileDiff, FileHistoryEntry, FileStatus } from "./types";
+
+const execFileAsync = promisify(execFileCb);
+
+/**
+ * Run up to `limit` async tasks concurrently from `items`.
+ */
+export async function parallelLimit<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const i = nextIndex++;
+      results[i] = await fn(items[i]);
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(limit, items.length) }, () => worker());
+  await Promise.all(workers);
+  return results;
+}
+
+/**
+ * Async version of getDiff — parallelizes git calls for speed on large PRs.
+ */
+export async function getDiffAsync(
+  baseRef: string,
+  headRef?: string,
+  concurrency: number = 20,
+): Promise<{ files: FileDiff[]; rawDiff: string }> {
+  const rangeArgs = headRef ? [`${baseRef}...${headRef}`] : [baseRef];
+
+  // Run the two upfront calls in parallel
+  const [nameStatusResult, rawDiffResult] = await Promise.all([
+    execFileAsync("git", ["diff", "--name-status", ...rangeArgs], { encoding: "utf-8" }),
+    execFileAsync("git", ["diff", ...rangeArgs], { encoding: "utf-8" }),
+  ]);
+
+  const nameStatus = nameStatusResult.stdout;
+  const rawDiff = rawDiffResult.stdout;
+
+  const fileStatuses = parseNameStatus(nameStatus);
+  const fileDiffs = parseDiffText(rawDiff);
+
+  // Per-file calls in parallel with concurrency limit
+  const merged = await parallelLimit(fileStatuses, concurrency, async (fs) => {
+    const diff = fileDiffs.find((d) => d.path === fs.path) || {
+      path: fs.path,
+      hunks: "",
+      additions: 0,
+      deletions: 0,
+    };
+
+    // Per-file git calls in parallel
+    const [oldContent, newContent, recentHistory] = await Promise.all([
+      fs.status !== "added"
+        ? getFileContentAsync(baseRef, fs.oldPath || fs.path)
+        : Promise.resolve(undefined),
+      fs.status !== "deleted"
+        ? getFileContentAsync(headRef || "HEAD", fs.path)
+        : Promise.resolve(undefined),
+      getFileHistoryAsync(fs.oldPath || fs.path, baseRef),
+    ]);
+
+    return {
+      path: fs.path,
+      oldPath: fs.oldPath,
+      status: fs.status,
+      hunks: diff.hunks,
+      oldContent,
+      newContent,
+      additions: diff.additions,
+      deletions: diff.deletions,
+      recentHistory,
+    } as FileDiff;
+  });
+
+  return { files: merged, rawDiff };
+}
+
+async function getFileContentAsync(ref: string, filePath: string): Promise<string | undefined> {
+  try {
+    const { stdout } = await execFileAsync("git", ["show", `${ref}:${filePath}`], { encoding: "utf-8" });
+    return stdout;
+  } catch {
+    return undefined;
+  }
+}
+
+async function getFileHistoryAsync(filePath: string, upToRef: string, count: number = 5): Promise<FileHistoryEntry[]> {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["log", `--format=%h|%s|%cr`, `-${count}`, upToRef, "--", filePath],
+      { encoding: "utf-8" },
+    );
+    const entries = stdout.trim().split("\n").filter(Boolean).map((line) => {
+      const [hash, message, age] = line.split("|");
+      return { hash, message, age } as FileHistoryEntry;
+    });
+
+    if (entries.length > 0) {
+      entries[0].diff = await getCommitFileDiffAsync(entries[0].hash, filePath);
+    }
+
+    return entries;
+  } catch {
+    return [];
+  }
+}
+
+async function getCommitFileDiffAsync(hash: string, filePath: string): Promise<string | undefined> {
+  try {
+    const { stdout } = await execFileAsync(
+      "git",
+      ["diff", `${hash}~1..${hash}`, "--", filePath],
+      { encoding: "utf-8" },
+    );
+    return stdout.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Get the unified diff between two refs.
