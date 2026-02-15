@@ -4,17 +4,6 @@ A structural diff explainer for pull requests. Parses changed files with Tree-si
 
 Best with an API key! Diffintel combines Tree-sitter AST analysis with AI to generate grounded explanations, impact analysis, and risk assessment. The structural analysis keeps the AI focused on what actually changed in the code. Without an API key, you still get the AST-based structural analysis and diffs, but you'll miss the plain-language insights that make the tool useful.
 
-## Why?
-
-AI agents write code fast. Sometimes faster than you can understand it. You commit the changes because they work, but what actually changed and why?
-Git diffs show lines that changed. Diffintel tries to explain what those changes mean. It catches the subtle stuff: side effects, architectural shifts, and edge cases that aren't obvious from scanning the diff.
-
-Unlike typical LLM outputs that dump everything into massive markdown files, diffintel creates focused, visual reports you can actually scan.
-
-## Supported languages
-
-JavaScript, TypeScript, Python, Go, Rust, Java, C, C++, Ruby, PHP, C#. Files in other languages still appear in the report with raw diffs.
-
 ## Install
 
 ```bash
@@ -33,6 +22,24 @@ With AI explanations:
 export ANTHROPIC_API_KEY=sk-ant-...
 diffintel explain --base main
 ```
+
+<details>
+<summary>View example report screenshots</summary>
+<br/>
+<img src="./docs/images/Screenshot from 2026-02-14 21-41-46.png" width="800" />
+<img src="./docs/images/Screenshot from 2026-02-14 21-42-02.png" width="800" />
+</details>
+
+## Why?
+
+AI agents write code fast. Sometimes faster than you can understand it. You commit the changes because they work, but what actually changed and why?
+Git diffs show lines that changed. Diffintel tries to explain what those changes mean. It catches the subtle stuff: side effects, architectural shifts, and edge cases that aren't obvious from scanning the diff.
+
+Unlike typical LLM outputs that dump everything into massive markdown files, diffintel creates focused, visual reports you can actually scan.
+
+## Supported languages
+
+JavaScript, TypeScript, Python, Go, Rust, Java, C, C++, Ruby, PHP, C#. Files in other languages still appear in the report with raw diffs.
 
 | Flag | Default | Description |
 |---|---|---|
