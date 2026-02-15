@@ -1,0 +1,27 @@
+{
+  "name": "diffintel",
+  "version": "0.1.0",
+  "description": "AI-powered structural diff explainer for pull requests",
+  "bin": {
+    "diffintel": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "tsc && node --import tsx --test test/unit/*.test.ts"
+  },
+  "keywords": ["diff", "pull-request", "code-review", "ast", "tree-sitter", "ai", "llm"],
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "commander": "^14.0.3",
+    "dotenv": "^17.2.4",
+    "tree-sitter": "^0.25.0",
+    "tree-sitter-javascript": "^0.25.0",
+    "tree-sitter-typescript": "^0.23.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.11",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}

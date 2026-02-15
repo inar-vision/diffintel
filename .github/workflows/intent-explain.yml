@@ -1,0 +1,32 @@
+name: PR Explain
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  explain:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Generate explain report
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node dist/cli.js explain --base origin/${{ github.base_ref }} --out explain-report.html
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: explain-report
+          path: explain-report.html
