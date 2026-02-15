@@ -107,13 +107,20 @@ Rules:
 - "fileExplanations": one entry per changed file, plain language. "notes" are file-specific things to consider — edge cases, testing suggestions, behavioral changes. Can be empty array if nothing notable.`;
 
   const client = new Anthropic();
-  const message = await client.messages.create({
-    model: "claude-sonnet-4-5-20250929",
-    max_tokens: 4096,
-    temperature: 0,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: prompt }],
-  });
+  let message: Anthropic.Message;
+  try {
+    message = await client.messages.create({
+      model: process.env.DIFFINTEL_MODEL || "claude-sonnet-4-5-20250929",
+      max_tokens: 4096,
+      temperature: 0,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: prompt }],
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    console.error(`LLM API call failed: ${detail}`);
+    throw err;
+  }
 
   const text = message.content
     .filter((block): block is Anthropic.TextBlock => block.type === "text")
@@ -141,8 +148,8 @@ Rules:
   }
 
   return {
-    title: parsed.title || "Code changes",
-    description: parsed.description || "",
+    title: typeof parsed.title === "string" ? parsed.title : "Code changes",
+    description: typeof parsed.description === "string" ? parsed.description : "",
     impact: Array.isArray(parsed.impact) ? parsed.impact : [],
     fixes: Array.isArray(parsed.fixes) ? parsed.fixes : [],
     risks: Array.isArray(parsed.risks) ? parsed.risks : [],
