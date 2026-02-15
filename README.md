@@ -34,6 +34,15 @@ diffintel explain --base main
 | `--out <file>` | `explain-report.html` | Output HTML report path |
 | `--summary <file>` | `<out>.md` | Output markdown summary path |
 
+## Configuration
+
+diffintel is configured via environment variables. You can set them directly or use a `.env` file in your working directory (loaded automatically via dotenv).
+
+| Variable | Required | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | For AI mode | Anthropic API key. Without it you get structural-only reports. |
+| `DIFFINTEL_MODEL` | No | Override the LLM model. Default: `claude-sonnet-4-5-20250929`. |
+
 ## What the report includes
 
 - **Impact** — stakeholder-level statements about what the change means (security, reliability, etc.)
@@ -42,6 +51,35 @@ diffintel explain --base main
 - **Structural changes** — functions, classes, imports added/removed/modified per file
 - **Per-file explanations** — plain-language summary of each changed file
 - **Collapsible diffs** — syntax-highlighted, truncated for large changes
+
+## Example output
+
+The markdown summary (posted as a PR comment) looks like this:
+
+```
+### Harden git operations and improve error handling
+
+**3 files** | **+25** added | **-12** removed
+
+> Security protections improved for shell command execution
+
+Shell commands in git-diff.ts now use execFileSync with array arguments
+instead of string interpolation, preventing potential command injection
+through crafted ref names or file paths.
+
+**What was fixed**
+- Git operations no longer pass unsanitized input through a shell
+
+**Things to watch**
+- **low** Verify CI pipelines still work with the new exec method
+
+**Changed files**
+- `src/explain/git-diff.ts` — Replaced execSync with execFileSync across all git operations
+- `src/explain/llm-explain.ts` — Added error handling around the LLM API call
+- `src/commands/explain.ts` — Improved error type safety in catch handler
+```
+
+The HTML report includes the same information plus collapsible syntax-highlighted diffs per file.
 
 ## GitHub Action
 
@@ -57,9 +95,10 @@ jobs:
   explain:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      pull-requests: write
+      contents: read       # needed to checkout the repo
+      pull-requests: write  # needed to post/update the PR comment
     steps:
+      # fetch-depth: 0 is required — diffintel needs full git history to diff
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -67,14 +106,23 @@ jobs:
         with:
           node-version: 20
       - run: npm install -g diffintel
+
       - name: Generate report
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Uncomment to override the default model:
+          # DIFFINTEL_MODEL: claude-haiku-4-5-20251001
         run: diffintel explain --base origin/${{ github.base_ref }}
+
+      # Upload the full HTML report as a downloadable build artifact
       - uses: actions/upload-artifact@v4
         with:
           name: explain-report
           path: explain-report.html
+
+      # Post or update a single PR comment with the markdown summary.
+      # Uses an HTML comment tag to find and replace previous comments,
+      # so each push updates the existing comment instead of creating duplicates.
       - name: Post PR comment
         env:
           GH_TOKEN: ${{ github.token }}
@@ -93,7 +141,12 @@ jobs:
           fi
 ```
 
-The comment updates on each push — no duplicates.
+### Customizing the workflow
+
+- **Without an API key** — remove the `ANTHROPIC_API_KEY` env line. You still get structural analysis, diffs, and stats.
+- **Different model** — set `DIFFINTEL_MODEL` to any Anthropic model ID.
+- **Trigger on specific paths** — add a `paths` filter under `on.pull_request` to skip non-code changes.
+- **Skip the PR comment** — remove the "Post PR comment" step if you only want the artifact.
 
 ## Development
 

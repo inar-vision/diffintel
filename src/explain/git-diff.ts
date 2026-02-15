@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import { FileDiff, FileHistoryEntry, FileStatus } from "./types";
 
 /**
@@ -6,10 +6,10 @@ import { FileDiff, FileHistoryEntry, FileStatus } from "./types";
  * If headRef is omitted, diffs against the working tree.
  */
 export function getDiff(baseRef: string, headRef?: string): { files: FileDiff[]; rawDiff: string } {
-  const range = headRef ? `${baseRef}...${headRef}` : baseRef;
+  const rangeArgs = headRef ? [`${baseRef}...${headRef}`] : [baseRef];
 
-  const nameStatus = execSync(`git diff --name-status ${range}`, { encoding: "utf-8" });
-  const rawDiff = execSync(`git diff ${range}`, { encoding: "utf-8" });
+  const nameStatus = execFileSync("git", ["diff", "--name-status", ...rangeArgs], { encoding: "utf-8" });
+  const rawDiff = execFileSync("git", ["diff", ...rangeArgs], { encoding: "utf-8" });
 
   const fileStatuses = parseNameStatus(nameStatus);
   const fileDiffs = parseDiffText(rawDiff);
@@ -117,7 +117,7 @@ export function parseDiffText(text: string): Array<Pick<FileDiff, "path" | "hunk
 
 function getFileContent(ref: string, filePath: string): string | undefined {
   try {
-    return execSync(`git show ${ref}:${filePath}`, { encoding: "utf-8" });
+    return execFileSync("git", ["show", `${ref}:${filePath}`], { encoding: "utf-8" });
   } catch {
     return undefined;
   }
@@ -125,8 +125,9 @@ function getFileContent(ref: string, filePath: string): string | undefined {
 
 function getFileHistory(filePath: string, upToRef: string, count: number = 5): FileHistoryEntry[] {
   try {
-    const log = execSync(
-      `git log --format="%h|%s|%cr" -${count} ${upToRef} -- ${filePath}`,
+    const log = execFileSync(
+      "git",
+      ["log", `--format=%h|%s|%cr`, `-${count}`, upToRef, "--", filePath],
       { encoding: "utf-8" },
     );
     const entries = log.trim().split("\n").filter(Boolean).map((line) => {
@@ -147,8 +148,9 @@ function getFileHistory(filePath: string, upToRef: string, count: number = 5): F
 
 function getCommitFileDiff(hash: string, filePath: string): string | undefined {
   try {
-    const diff = execSync(
-      `git diff ${hash}~1..${hash} -- ${filePath}`,
+    const diff = execFileSync(
+      "git",
+      ["diff", `${hash}~1..${hash}`, "--", filePath],
       { encoding: "utf-8" },
     );
     return diff.trim() || undefined;
