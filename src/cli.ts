@@ -22,4 +22,13 @@ program
     process.exit(code);
   });
 
+program
+  .command("init")
+  .description("Set up GitHub Action workflow for PR analysis")
+  .action(() => {
+    const { run } = require("./commands/init");
+    const code = run();
+    process.exit(code);
+  });
+
 program.parse();

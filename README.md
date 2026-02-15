@@ -88,6 +88,16 @@ through crafted ref names or file paths.
 
 The HTML report includes the same information plus collapsible syntax-highlighted diffs per file.
 
+## GitHub Action setup
+
+Scaffold the workflow file automatically:
+
+```bash
+diffintel init
+```
+
+This creates `.github/workflows/diffintel.yml` with the configuration below. You just need to add `ANTHROPIC_API_KEY` to your repo secrets.
+
 ## GitHub Action
 
 Posts a summary comment on the PR and uploads the full report as an artifact:
