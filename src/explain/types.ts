@@ -31,11 +31,19 @@ export interface StructuralChange {
   detail?: string;
 }
 
+export interface ControlFlowAnnotation {
+  functionName: string;
+  line: number;
+  kind: "guard" | "try-catch";
+  description: string;
+}
+
 export interface FileAnalysis {
   path: string;
   status: FileStatus;
   language: string | null;
   structuralChanges: StructuralChange[];
+  controlFlowAnnotations: ControlFlowAnnotation[];
   baseDeclarations: string[];
   recentHistory: FileHistoryEntry[];
   rawDiff: string;

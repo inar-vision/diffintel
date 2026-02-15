@@ -15,7 +15,8 @@ Precision rules:
 - Be specific: "product listings now require a valid token" not "authentication was added".
 - Name the affected endpoints, functions, or data flows.
 - If an assumption or invariant changed (e.g., "IDs were sequential, now they're computed"), say so.
-- Stick to what the diff shows. Do not speculate about intent beyond what the code and history demonstrate.`;
+- Stick to what the diff shows. Do not speculate about intent beyond what the code and history demonstrate.
+- Use CONTROL FLOW CONTEXT to understand guards and safety checks. If an operation is guarded (e.g., a file write protected by an existence check that returns early), do not flag it as a risk.`;
 
 const ACTION_ICON: Record<string, string> = {
   added: "+",
@@ -71,6 +72,16 @@ export async function explainChanges(
     })
     .join("\n");
 
+  const controlFlowSummary = sortedFiles
+    .filter((f) => f.controlFlowAnnotations.length > 0)
+    .map((f) => {
+      const annotations = f.controlFlowAnnotations
+        .map((a) => `  - ${a.functionName}() line ${a.line}: ${a.kind} — ${a.description}`)
+        .join("\n");
+      return `- ${f.path}:\n${annotations}`;
+    })
+    .join("\n");
+
   const fileList = sortedFiles.map((f) => `- ${f.path} (${f.status})`).join("\n");
 
   const truncatedDiff = truncateDiff(rawDiff, 4000);
@@ -83,6 +94,9 @@ ${baseSummary || "(new files only, no prior state)"}
 
 ## Structural changes (this diff)
 ${structuralSummary || "(no structural changes detected)"}
+
+## Control flow context
+${controlFlowSummary || "(no notable control flow patterns detected)"}
 
 ## Files changed
 ${fileList}
