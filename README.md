@@ -4,7 +4,7 @@ A structural diff explainer for pull requests. Parses changed files with Tree-si
 
 ### Best with an API key! 
 
-Diffintel combines Tree-sitter AST analysis with AI to generate grounded explanations, impact analysis, and risk assessment. The structural analysis keeps the AI focused on what actually changed in the code. Without an API key, you still get the AST-based structural analysis and diffs, but you'll miss the plain-language insights that make the tool useful.
+Diffintel combines Tree-sitter AST analysis and commit history with AI to generate grounded explanations, impact analysis, and risk assessment. The structural analysis keeps the AI focused on what actually changed in the code. Without an API key, you still get the AST-based structural analysis and diffs, but you'll miss the plain-language insights that make the tool useful.
 
 ## Install
 
