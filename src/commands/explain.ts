@@ -11,6 +11,7 @@ interface ExplainOptions {
   head?: string;
   out?: string;
   summary?: string;
+  json?: string;
 }
 
 export async function run(opts: ExplainOptions): Promise<number> {
@@ -80,6 +81,10 @@ export async function run(opts: ExplainOptions): Promise<number> {
     const markdown = renderMarkdownSummary(report);
     fs.writeFileSync(summaryFile, markdown, "utf-8");
 
+    // Generate JSON export alongside HTML
+    const jsonFile = opts.json || outFile.replace(/\.html$/, ".json");
+    fs.writeFileSync(jsonFile, JSON.stringify(report, null, 2), "utf-8");
+
     console.error(`\n${explanation.title}`);
     console.error(`${fileDiffs.length} files | +${totalAdditions} -${totalDeletions}`);
     if (explanation.fixes.length > 0) {
@@ -90,6 +95,7 @@ export async function run(opts: ExplainOptions): Promise<number> {
     }
     console.error(`\nReport: ${outFile}`);
     console.error(`Summary: ${summaryFile}`);
+    console.error(`JSON:    ${jsonFile}`);
 
     return 0;
   } catch (err: unknown) {
