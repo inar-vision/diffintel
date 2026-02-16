@@ -32,6 +32,8 @@ Git diffs show lines that changed. Diffintel tries to explain what those changes
 
 Unlike typical LLM outputs that dump everything into massive markdown files, diffintel creates focused, visual reports you can actually scan.
 
+While it works for any codebase, it was inspired by the rise of agentic coding where change velocity increases and understanding becomes the bottleneck.
+
 ## Supported languages
 
 JavaScript, TypeScript, Python, Go, Rust, Java, C, C++, Ruby, PHP, C#. Files in other languages still appear in the report with raw diffs.
