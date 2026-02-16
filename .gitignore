@@ -5,4 +5,5 @@ dist/
 *.tgz
 
 # Generated reports
-explain-report.html
+*-report.*
+*-report-*.*
