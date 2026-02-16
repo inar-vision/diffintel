@@ -23,13 +23,6 @@ export ANTHROPIC_API_KEY=sk-ant-...
 diffintel explain --base main
 ```
 
-<details>
-<summary>View example report screenshots</summary>
-<br/>
-<img src="./docs/images/Screenshot from 2026-02-14 21-41-46.png" width="800" />
-<img src="./docs/images/Screenshot from 2026-02-14 21-42-02.png" width="800" />
-</details>
-
 ## Why?
 
 AI agents write code fast. Sometimes faster than you can understand it. You commit the changes because they work, but what actually changed and why?
@@ -67,6 +60,13 @@ diffintel is configured via environment variables. You can set them directly or 
 - **Collapsible diffs** — syntax-highlighted, truncated for large changes
 
 ## Example output
+
+<details>
+<summary><strong>Example Report Screenshots</strong></summary>
+<br/>
+<img src="./docs/images/Screenshot from 2026-02-14 21-41-46.png" width="800" />
+<img src="./docs/images/Screenshot from 2026-02-14 21-42-02.png" width="800" />
+</details>
 
 The markdown summary (posted as a PR comment) looks like this:
 
