@@ -2,7 +2,7 @@ import fs from "fs";
 import { getDiff } from "../explain/git-diff";
 import { analyzeFile } from "../explain/ast-diff";
 import { explainChanges } from "../explain/llm-explain";
-import { renderReport } from "../explain/html-report";
+import { renderReportHtml } from "../report/render-html";
 import { renderMarkdownSummary } from "../explain/markdown-summary";
 import { ExplainReport, LLMExplanation } from "../explain/types";
 
@@ -73,7 +73,7 @@ export async function run(opts: ExplainOptions): Promise<number> {
       files: fileAnalyses,
     };
 
-    const html = renderReport(report);
+    const html = renderReportHtml(report);
     fs.writeFileSync(outFile, html, "utf-8");
 
     // Generate markdown summary alongside HTML
