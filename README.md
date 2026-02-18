@@ -1,13 +1,9 @@
 # diffintel
 
-<p align="left">
-  <a href="./docs/images/Screenshot from 2026-02-14 21-41-46.png" >
-    <img src="./docs/images/Screenshot from 2026-02-14 21-41-46.png" width="300" />
-  </a>
-&nbsp;&nbsp;&nbsp;&nbsp;
-  <a href="./docs/images/Screenshot from 2026-02-14 21-42-02.png">
-    <img src="./docs/images/Screenshot from 2026-02-14 21-42-02.png" width="300" />
-  </a>
+<p>
+  <img src="./docs/images/Screenshot from 2026-02-14 21-41-46.png" width="300" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="./docs/images/Screenshot from 2026-02-14 21-42-02.png" width="300" />
 </p>
 
 A structural diff explainer for pull requests. Parses changed files with Tree-sitter, detects structural changes (functions, classes, imports, variables), and optionally uses an LLM to generate a plain-language explanation with impact assessment and risk analysis. Outputs a self-contained HTML report and a markdown summary suitable for PR comments.
