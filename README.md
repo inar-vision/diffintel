@@ -1,9 +1,7 @@
 # diffintel
 
-<p>
-  <img src="./docs/images/Screenshot from 2026-02-14 21-41-46.png" width="300" />
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="./docs/images/Screenshot from 2026-02-14 21-42-02.png" width="300" />
+<p align="center">
+  <img src="./docs/images/Screenshot from 2026-02-14 21-41-46.png" width="600" />
 </p>
 
 A structural diff explainer for pull requests. Parses changed files with Tree-sitter, detects structural changes (functions, classes, imports, variables), and optionally uses an LLM to generate a plain-language explanation with impact assessment and risk analysis. Outputs a self-contained HTML report and a markdown summary suitable for PR comments.
@@ -71,12 +69,10 @@ diffintel is configured via environment variables. You can set them directly or 
 
 ## Example output
 
-<details>
-<summary><strong>Example Report Screenshots</strong></summary>
+<strong>Example Report Screenshots</strong>
 <br/>
-<img src="./docs/images/Screenshot from 2026-02-14 21-41-46.png" width="800" />
-<img src="./docs/images/Screenshot from 2026-02-14 21-42-02.png" width="800" />
-</details>
+<img src="./docs/images/Screenshot from 2026-02-14 21-41-46.png" width="400" />
+<img src="./docs/images/Screenshot from 2026-02-14 21-42-02.png" width="400" />
 
 The markdown summary (posted as a PR comment) looks like this:
 
