@@ -75,12 +75,16 @@ export function analyzeFile(diff: FileDiff): FileAnalysis {
     for (const [name, decl] of newMap) {
       const old = oldMap.get(name);
       if (!old) {
+        const related = findRelatedBaseDecls(name, baseDecls);
         structuralChanges.push({
           file: diff.path,
           type: decl.type,
           action: "added",
           name,
           startLine: decl.startLine,
+          detail: related.length > 0
+            ? `related existing: ${related.join(", ")}`
+            : undefined,
         });
       } else if (old.text !== decl.text) {
         structuralChanges.push({
@@ -109,6 +113,43 @@ export function analyzeFile(diff: FileDiff): FileAnalysis {
     recentHistory: [],
     rawDiff: diff.hunks,
   };
+}
+
+/**
+ * Split a camelCase/PascalCase/snake_case name into lowercase stems,
+ * filtering to length >= 3.
+ */
+export function extractStems(name: string): string[] {
+  // Split on underscores, then on camelCase boundaries
+  const parts = name
+    .split("_")
+    .flatMap((part) => part.replace(/([a-z])([A-Z])/g, "$1\0$2").split("\0"));
+  return [...new Set(parts.map((p) => p.toLowerCase()).filter((p) => p.length >= 3))];
+}
+
+/**
+ * Find base declaration names related to an added declaration by stem prefix matching.
+ * A match occurs when any stem of the added name is a prefix of a base stem or vice versa.
+ */
+export function findRelatedBaseDecls(
+  addedName: string,
+  baseDecls: Array<{ name: string; type: string }>,
+): string[] {
+  const addedStems = extractStems(addedName);
+  if (addedStems.length === 0) return [];
+
+  const related: string[] = [];
+  for (const decl of baseDecls) {
+    if (decl.name === addedName) continue;
+    const baseStems = extractStems(decl.name);
+    const matches = addedStems.some((as) =>
+      baseStems.some((bs) => bs.startsWith(as) || as.startsWith(bs)),
+    );
+    if (matches) {
+      related.push(decl.name);
+    }
+  }
+  return related;
 }
 
 export function extractDeclarations(source: string, ext: string) {

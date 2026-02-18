@@ -16,7 +16,11 @@ Precision rules:
 - Name the affected endpoints, functions, or data flows.
 - If an assumption or invariant changed (e.g., "IDs were sequential, now they're computed"), say so.
 - Stick to what the diff shows. Do not speculate about intent beyond what the code and history demonstrate.
-- Use CONTROL FLOW CONTEXT to understand guards and safety checks. If an operation is guarded (e.g., a file write protected by an existence check that returns early), do not flag it as a risk.`;
+- Use CONTROL FLOW CONTEXT to understand guards and safety checks. If an operation is guarded (e.g., a file write protected by an existence check that returns early), do not flag it as a risk.
+
+Structural change annotations:
+- When a "+" entry has a "[related existing: ...]" annotation, the added declaration is related to existing code. Treat this as an improvement or refactor — not a new feature.
+- Never say "adds the ability to...", "adds support for...", or "introduces..." for functionality that already existed in any form. Use "improves", "changes how", "refactors", or "fixes" instead.`;
 
 const ACTION_ICON: Record<string, string> = {
   added: "+",
@@ -59,14 +63,25 @@ export async function explainChanges(
 
   const baseSummary = sortedFiles
     .filter((f) => f.baseDeclarations.length > 0)
-    .map((f) => `- ${f.path}: ${f.baseDeclarations.join(", ")}`)
+    .map((f) => {
+      const MAX_BASE_DECLS = 20;
+      if (f.baseDeclarations.length <= MAX_BASE_DECLS) {
+        return `- ${f.path} — existing declarations: ${f.baseDeclarations.join(", ")}`;
+      }
+      const shown = f.baseDeclarations.slice(0, MAX_BASE_DECLS).join(", ");
+      const remaining = f.baseDeclarations.length - MAX_BASE_DECLS;
+      return `- ${f.path} — existing declarations: ${shown}, ... and ${remaining} more`;
+    })
     .join("\n");
 
   const structuralSummary = sortedFiles
     .filter((f) => f.structuralChanges.length > 0)
     .map((f) => {
       const changes = f.structuralChanges
-        .map((c) => `${ACTION_ICON[c.action]}${c.name} (${c.type})`)
+        .map((c) => {
+          const base = `${ACTION_ICON[c.action]}${c.name} (${c.type})`;
+          return c.detail ? `${base} [${c.detail}]` : base;
+        })
         .join(", ");
       return `- ${f.path} (${f.status}): ${changes}`;
     })
@@ -86,10 +101,17 @@ export async function explainChanges(
 
   const truncatedDiff = truncateDiff(rawDiff, 4000);
 
+  if (process.env.DIFFINTEL_DEBUG) {
+    console.error("\n--- DEBUG: LLM prompt context ---");
+    console.error("Base state:\n" + (baseSummary || "(none)"));
+    console.error("Structural changes:\n" + (structuralSummary || "(none)"));
+    console.error("--- END DEBUG ---\n");
+  }
+
   const prompt = `## Recent git history for changed files
 ${historySummary || "(no prior history)"}
 
-## Base state (what existed BEFORE this diff)
+## Base state (declarations that existed BEFORE this diff — anything listed here is NOT new)
 ${baseSummary || "(new files only, no prior state)"}
 
 ## Structural changes (this diff)
