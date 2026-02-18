@@ -10,23 +10,33 @@ A structural diff explainer for pull requests. Parses changed files with Tree-si
 
 Diffintel combines Tree-sitter AST analysis and commit history with AI to generate grounded explanations, impact analysis, and risk assessment. The structural analysis keeps the AI focused on what actually changed in the code. Without an API key, you still get the AST-based structural analysis and diffs, but you'll miss the plain-language insights that make the tool useful.
 
-## Install
+## Try it without installing
+
+```bash
+npx diffintel explain --base main
+```
+
+## Install & usage
+
+Add to your project:
+
+```bash
+npm install diffintel
+npx diffintel explain --base main
+```
+
+Or install globally:
 
 ```bash
 npm install -g diffintel
-```
-
-## Usage
-
-```bash
-diffintel explain --base main --out report.html
+diffintel explain --base main
 ```
 
 With AI explanations:
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...
-diffintel explain --base main
+npx diffintel explain --base main
 ```
 
 ## Why?
