@@ -1,6 +1,6 @@
 {
   "name": "diffintel",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "AI-powered structural diff explainer for pull requests",
   "repository": "github:inar-vision/diffintel",
   "bin": {
