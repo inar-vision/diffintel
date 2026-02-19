@@ -34,7 +34,9 @@ jobs:
 
       - name: Generate explain report
         env:
+          # Provide ONE of these API keys:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: node dist/cli.js explain --base origin/${{ github.base_ref }} --out explain-report.html --summary explain-summary.md
 
       - uses: actions/upload-artifact@v4

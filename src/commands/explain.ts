@@ -17,7 +17,7 @@ export async function run(opts: ExplainOptions): Promise<number> {
   const baseRef = opts.base || "origin/main";
   const headRef = opts.head || "HEAD";
   const outFile = opts.out || "explain-report.html";
-  const hasApiKey = !!process.env.ANTHROPIC_API_KEY;
+  const hasApiKey = !!(process.env.ANTHROPIC_API_KEY || process.env.OPENAI_API_KEY);
 
   try {
     console.error(`Analyzing diff: ${baseRef}...${headRef}`);
