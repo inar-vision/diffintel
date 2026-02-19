@@ -26,6 +26,7 @@
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
+    "openai": "^4.87.3",
     "commander": "^14.0.3",
     "dotenv": "^17.2.4",
     "tree-sitter": "^0.25.0",

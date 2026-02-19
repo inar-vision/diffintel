@@ -27,7 +27,9 @@ jobs:
 
       - name: Generate report
         env:
+          # Provide ONE of these API keys:
           ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
+          # OPENAI_API_KEY: \${{ secrets.OPENAI_API_KEY }}
           # Uncomment to override the default model:
           # DIFFINTEL_MODEL: claude-haiku-4-5-20251001
         run: diffintel explain --base origin/\${{ github.base_ref }}
@@ -71,7 +73,8 @@ export function run(): number {
   console.error(`Created ${WORKFLOW_FILE}`);
   console.error("");
   console.error("Next steps:");
-  console.error("  1. Add ANTHROPIC_API_KEY to your repo secrets (Settings → Secrets → Actions)");
+  console.error("  1. Add an API key to your repo secrets (Settings → Secrets → Actions):");
+  console.error("     - ANTHROPIC_API_KEY (for Claude) or OPENAI_API_KEY (for GPT)");
   console.error("  2. Commit and push the workflow file");
   console.error("  3. Open a pull request to see it in action");
 

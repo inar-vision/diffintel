@@ -32,10 +32,12 @@ npm install -g diffintel
 diffintel explain --base main
 ```
 
-With AI explanations:
+With AI explanations (either provider works):
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
+export ANTHROPIC_API_KEY=sk-ant-...    # for Claude
+# or
+export OPENAI_API_KEY=sk-...           # for GPT
 npx diffintel explain --base main
 ```
 
@@ -65,8 +67,10 @@ diffintel is configured via environment variables. You can set them directly or 
 
 | Variable | Required | Description |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | For AI mode | Anthropic API key. Without it you get structural-only reports. |
-| `DIFFINTEL_MODEL` | No | Override the LLM model. Default: `claude-sonnet-4-5-20250929`. |
+| `ANTHROPIC_API_KEY` | For AI mode | Anthropic API key. Provide this or `OPENAI_API_KEY` for AI explanations. |
+| `OPENAI_API_KEY` | For AI mode | OpenAI API key. Alternative to `ANTHROPIC_API_KEY`. |
+| `DIFFINTEL_PROVIDER` | No | Force `anthropic` or `openai` when both keys are set. Default: `anthropic`. |
+| `DIFFINTEL_MODEL` | No | Override the LLM model. Default: `claude-sonnet-4-5-20250929` (Anthropic) or `gpt-4o` (OpenAI). |
 
 ## What the report includes
 
@@ -119,7 +123,7 @@ Scaffold the workflow file automatically:
 diffintel init
 ```
 
-This creates `.github/workflows/diffintel.yml` with the configuration below. You just need to add `ANTHROPIC_API_KEY` to your repo secrets.
+This creates `.github/workflows/diffintel.yml` with the configuration below. You just need to add `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` to your repo secrets.
 
 ## GitHub Action
 
@@ -149,7 +153,9 @@ jobs:
 
       - name: Generate report
         env:
+          # Provide ONE of these API keys:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           # Uncomment to override the default model:
           # DIFFINTEL_MODEL: claude-haiku-4-5-20251001
         run: diffintel explain --base origin/${{ github.base_ref }}
@@ -183,8 +189,8 @@ jobs:
 
 ### Customizing the workflow
 
-- **Without an API key** — remove the `ANTHROPIC_API_KEY` env line. You still get structural analysis, diffs, and stats.
-- **Different model** — set `DIFFINTEL_MODEL` to any Anthropic model ID.
+- **Without an API key** — remove the API key env lines. You still get structural analysis, diffs, and stats.
+- **Different model** — set `DIFFINTEL_MODEL` to any model ID supported by your provider.
 - **Trigger on specific paths** — add a `paths` filter under `on.pull_request` to skip non-code changes.
 - **Skip the PR comment** — remove the "Post PR comment" step if you only want the artifact.
 

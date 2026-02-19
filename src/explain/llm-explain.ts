@@ -1,5 +1,70 @@
 import Anthropic from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { FileAnalysis, LLMExplanation, Fix, Risk, FileExplanation } from "./types";
+
+type Provider = "anthropic" | "openai";
+
+function detectProvider(): Provider | null {
+  const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
+  const hasOpenAI = !!process.env.OPENAI_API_KEY;
+
+  if (hasAnthropic && hasOpenAI) {
+    const forced = process.env.DIFFINTEL_PROVIDER?.toLowerCase();
+    if (forced === "openai") return "openai";
+    return "anthropic"; // default when both present
+  }
+  if (hasAnthropic) return "anthropic";
+  if (hasOpenAI) return "openai";
+  return null;
+}
+
+async function callLLM(
+  systemPrompt: string,
+  userPrompt: string,
+): Promise<{ text: string; tokenUsage: { input: number; output: number } }> {
+  const provider = detectProvider();
+
+  if (provider === "openai") {
+    const openai = new OpenAI();
+    const completion = await openai.chat.completions.create({
+      model: process.env.DIFFINTEL_MODEL || "gpt-4o",
+      temperature: 0,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    });
+    const text = completion.choices[0]?.message?.content || "";
+    const tokenUsage = {
+      input: completion.usage?.prompt_tokens || 0,
+      output: completion.usage?.completion_tokens || 0,
+    };
+    return { text, tokenUsage };
+  }
+
+  // Default: Anthropic
+  const client = new Anthropic();
+  const message = await client.messages.create({
+    model: process.env.DIFFINTEL_MODEL || "claude-sonnet-4-5-20250929",
+    max_tokens: 4096,
+    temperature: 0,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userPrompt }],
+  });
+
+  const text = message.content
+    .filter((block): block is Anthropic.TextBlock => block.type === "text")
+    .map((block) => block.text)
+    .join("\n");
+
+  const tokenUsage = {
+    input: message.usage?.input_tokens || 0,
+    output: message.usage?.output_tokens || 0,
+  };
+
+  return { text, tokenUsage };
+}
 
 const SYSTEM_PROMPT = `You explain code changes for both developers and non-developers. Respond ONLY with valid JSON. Be concise but clear.
 
@@ -142,31 +207,17 @@ Rules:
 - "risks": only GENUINE new concerns, NOT things being fixed. If a change restores previous behavior, that is a fix, not a risk. Can be empty.
 - "fileExplanations": one entry per changed file, plain language. "notes" are file-specific things to consider — edge cases, testing suggestions, behavioral changes. Can be empty array if nothing notable.`;
 
-  const client = new Anthropic();
-  let message: Anthropic.Message;
+  let text: string;
+  let tokenUsage: { input: number; output: number };
   try {
-    message = await client.messages.create({
-      model: process.env.DIFFINTEL_MODEL || "claude-sonnet-4-5-20250929",
-      max_tokens: 4096,
-      temperature: 0,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: prompt }],
-    });
+    const result = await callLLM(SYSTEM_PROMPT, prompt);
+    text = result.text;
+    tokenUsage = result.tokenUsage;
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     console.error(`LLM API call failed: ${detail}`);
     throw err;
   }
-
-  const text = message.content
-    .filter((block): block is Anthropic.TextBlock => block.type === "text")
-    .map((block) => block.text)
-    .join("\n");
-
-  const tokenUsage = {
-    input: message.usage?.input_tokens || 0,
-    output: message.usage?.output_tokens || 0,
-  };
 
   let parsed: LLMResponse;
   try {
