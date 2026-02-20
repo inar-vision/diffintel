@@ -165,6 +165,9 @@ function extractImportFromNode(node: SyntaxNode, languageId: string): ImportInfo
 function extractJsTsImport(node: SyntaxNode): ImportInfo | null {
   // import ... from "specifier"
   if (node.type === "import_statement") {
+    // Skip type-only imports — they're erased at compile time and have no runtime blast radius
+    if (node.text.startsWith("import type ")) return null;
+
     const source = node.childForFieldName("source")?.text;
     if (!source) return null;
     const specifier = source.replace(/^['"]|['"]$/g, "");
@@ -293,10 +296,16 @@ function extractImportsLightweight(source: string, filePath: string): ImportInfo
   const imports: ImportInfo[] = [];
 
   if ([".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs"].includes(ext)) {
-    // ES imports: import ... from "specifier"
+    // ES imports: import ... from "specifier" (skip type-only imports)
     const esImportRe = /(?:import\s+(?:{([^}]+)}\s+from\s+|(\w+)\s+from\s+|(?:\*\s+as\s+\w+)\s+from\s+)?)['"]([^'"]+)['"]/g;
+    const typeImportRe = /import\s+type\s+/;
     let match;
     while ((match = esImportRe.exec(source)) !== null) {
+      // Skip type-only imports — no runtime impact
+      const lineStart = source.lastIndexOf("\n", match.index) + 1;
+      const linePrefix = source.slice(lineStart, match.index + match[0].length);
+      if (typeImportRe.test(linePrefix)) continue;
+
       const symbols: string[] = [];
       if (match[1]) {
         symbols.push(...match[1].split(",").map((s) => s.trim().split(/\s+as\s+/)[0]).filter(Boolean));

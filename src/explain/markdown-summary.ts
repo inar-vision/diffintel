@@ -60,11 +60,13 @@ export function renderMarkdownSummary(report: ExplainReport): string {
   }
 
   // Blast radius
-  if (report.dependencyGraph) {
-    const { reverseDeps, secondRingDeps } = report.dependencyGraph;
-    const hasDeps = reverseDeps.length > 0;
-
+  if (report.dependencyGraph || explanation.blastRadiusSummary) {
     parts.push("**Blast radius**");
+
+    const graph = report.dependencyGraph;
+    const reverseDeps = graph?.reverseDeps || [];
+    const secondRingDeps = graph?.secondRingDeps || [];
+    const hasDeps = reverseDeps.length > 0;
 
     // Plain-language summary first
     if (explanation.blastRadiusSummary) {

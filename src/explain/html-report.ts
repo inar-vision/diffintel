@@ -503,14 +503,16 @@ function buildCommonChanges(files: ExplainReport["files"]): string {
       const sig = `${c.action}:${c.type}:${c.name}`;
       const group = groups.get(sig);
       if (group) {
-        group.filePaths.push(f.path);
+        if (!group.filePaths.includes(f.path)) {
+          group.filePaths.push(f.path);
+        }
       } else {
         groups.set(sig, { change: c, filePaths: [f.path] });
       }
     }
   }
 
-  // Filter to changes appearing in 2+ files
+  // Filter to changes appearing in 2+ distinct files
   const common = [...groups.values()].filter((g) => g.filePaths.length >= 2);
   if (common.length === 0) return "";
 
