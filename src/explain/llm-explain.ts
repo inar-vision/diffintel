@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
-import { FileAnalysis, LLMExplanation, Fix, Risk, FileExplanation } from "./types";
+import { FileAnalysis, LLMExplanation, Fix, Risk, FileExplanation, DependencyGraph } from "./types";
 
 type Provider = "anthropic" | "openai";
 
@@ -85,7 +85,13 @@ Precision rules:
 
 Structural change annotations:
 - When a "+" entry has a "[related existing: ...]" annotation, the added declaration is related to existing code. Treat this as an improvement or refactor — not a new feature.
-- Never say "adds the ability to...", "adds support for...", or "introduces..." for functionality that already existed in any form. Use "improves", "changes how", "refactors", or "fixes" instead.`;
+- Never say "adds the ability to...", "adds support for...", or "introduces..." for functionality that already existed in any form. Use "improves", "changes how", "refactors", or "fixes" instead.
+
+Blast radius analysis:
+- You may be given a DEPENDENCY GRAPH showing which files import the changed files (reverse deps) and which files the changed files import (forward deps).
+- Use reverse deps to assess blast radius: if a changed function signature or export is imported by many files, flag this as a risk.
+- If a change is internal (no reverse deps), note that the blast radius is contained.
+- Second-ring deps show indirect impact — mention these only if the change is significant (e.g., breaking interface change).`;
 
 const ACTION_ICON: Record<string, string> = {
   added: "+",
@@ -100,11 +106,13 @@ interface LLMResponse {
   fixes: Array<{ description: string }>;
   risks: Array<{ level: "low" | "medium" | "high"; description: string }>;
   fileExplanations: Array<{ path: string; summary: string; notes?: string[] }>;
+  blastRadiusSummary?: string;
 }
 
 export async function explainChanges(
   files: FileAnalysis[],
   rawDiff: string,
+  dependencyGraph?: DependencyGraph,
 ): Promise<LLMExplanation> {
   // Sort files by path for stable, deterministic prompt ordering
   const sortedFiles = [...files].sort((a, b) => a.path.localeCompare(b.path));
@@ -164,12 +172,15 @@ export async function explainChanges(
 
   const fileList = sortedFiles.map((f) => `- ${f.path} (${f.status})`).join("\n");
 
+  const depGraphSummary = formatDependencyGraph(dependencyGraph);
+
   const truncatedDiff = truncateDiff(rawDiff, 4000);
 
   if (process.env.DIFFINTEL_DEBUG) {
     console.error("\n--- DEBUG: LLM prompt context ---");
     console.error("Base state:\n" + (baseSummary || "(none)"));
     console.error("Structural changes:\n" + (structuralSummary || "(none)"));
+    console.error("Dependency graph:\n" + (depGraphSummary || "(none)"));
     console.error("--- END DEBUG ---\n");
   }
 
@@ -185,6 +196,9 @@ ${structuralSummary || "(no structural changes detected)"}
 ## Control flow context
 ${controlFlowSummary || "(no notable control flow patterns detected)"}
 
+## Dependency graph (blast radius)
+${depGraphSummary || "(no dependency data available)"}
+
 ## Files changed
 ${fileList}
 
@@ -198,14 +212,16 @@ Respond with JSON:
   "impact": ["<business/organizational impact statement>"],
   "fixes": [{"description": "<what was fixed or restored, one sentence>"}],
   "risks": [{"level": "low|medium|high", "description": "<genuine new risk, one sentence>"}],
-  "fileExplanations": [{"path": "<file path>", "summary": "<1-2 sentences explaining what this file does and what changed>", "notes": ["<thing to consider about this specific change>"]}]
+  "fileExplanations": [{"path": "<file path>", "summary": "<1-2 sentences explaining what this file does and what changed>", "notes": ["<thing to consider about this specific change>"]}],
+  "blastRadiusSummary": "<1-3 sentences describing what parts of the system are affected by this change, written for non-developers>"
 }
 
 Rules:
 - "impact": short, stakeholder-level statements about what this change means for the product/team. Think about what matters to engineers, product, security, legal, and leadership. Examples: "Security protections restored", "Reduced risk of unauthorized access", "Improved reliability of product creation". 1-4 items. Can be empty for trivial changes.
 - "fixes": things this change REPAIRS or RESTORES (e.g., re-adding security that was removed). Can be empty.
 - "risks": only GENUINE new concerns, NOT things being fixed. If a change restores previous behavior, that is a fix, not a risk. Can be empty.
-- "fileExplanations": one entry per changed file, plain language. "notes" are file-specific things to consider — edge cases, testing suggestions, behavioral changes. Can be empty array if nothing notable.`;
+- "fileExplanations": one entry per changed file, plain language. "notes" are file-specific things to consider — edge cases, testing suggestions, behavioral changes. Can be empty array if nothing notable.
+- "blastRadiusSummary": a plain-language statement describing the reach of this change, written for a non-developer. Reference features, workflows, or screens rather than file names. Use the dependency graph data to determine reach. Examples: "This change is self-contained and only affects order processing internals.", "This change modifies the authentication flow, which is used across 12 parts of the application including checkout, user settings, and the admin panel.", "These changes touch shared utility code used by most features — thorough testing is recommended." Can be empty string if no dependency data is available.`;
 
   let text: string;
   let tokenUsage: { input: number; output: number };
@@ -231,6 +247,7 @@ Rules:
       fixes: [],
       risks: [{ level: "low", description: "LLM response was not valid JSON; showing raw text." }],
       fileExplanations: [],
+      blastRadiusSummary: "",
     };
   }
 
@@ -243,8 +260,62 @@ Rules:
     fileExplanations: Array.isArray(parsed.fileExplanations)
       ? parsed.fileExplanations.map((fe) => ({ ...fe, notes: Array.isArray(fe.notes) ? fe.notes : [] }))
       : [],
+    blastRadiusSummary: typeof parsed.blastRadiusSummary === "string" ? parsed.blastRadiusSummary : "",
     tokenUsage,
   };
+}
+
+function formatDependencyGraph(graph?: DependencyGraph): string {
+  if (!graph) return "";
+
+  const parts: string[] = [];
+
+  if (graph.reverseDeps.length > 0) {
+    parts.push("### Files that import changed files (may be affected):");
+    // Group by target (the changed file being imported)
+    const byTarget = new Map<string, Array<{ from: string; symbols: string[] }>>();
+    for (const edge of graph.reverseDeps) {
+      const list = byTarget.get(edge.to) || [];
+      list.push({ from: edge.from, symbols: edge.symbols });
+      byTarget.set(edge.to, list);
+    }
+    for (const [target, importers] of byTarget) {
+      const importerList = importers
+        .map((i) => {
+          const symInfo = i.symbols.length > 0 ? ` (uses: ${i.symbols.join(", ")})` : "";
+          return `    - ${i.from}${symInfo}`;
+        })
+        .join("\n");
+      parts.push(`- ${target} is imported by ${importers.length} file(s):\n${importerList}`);
+    }
+  } else {
+    parts.push("No other files import the changed files — blast radius is contained.");
+  }
+
+  if (graph.forwardDeps.length > 0) {
+    parts.push("\n### Dependencies of changed files:");
+    const bySource = new Map<string, string[]>();
+    for (const edge of graph.forwardDeps) {
+      const list = bySource.get(edge.from) || [];
+      list.push(edge.to);
+      bySource.set(edge.from, list);
+    }
+    for (const [source, deps] of bySource) {
+      parts.push(`- ${source} imports: ${deps.join(", ")}`);
+    }
+  }
+
+  if (graph.secondRingDeps.length > 0) {
+    parts.push(`\n### Second-ring impact (${graph.secondRingDeps.length} files import the affected files above)`);
+    const files = [...new Set(graph.secondRingDeps.map((e) => e.from))];
+    const shown = files.slice(0, 10);
+    parts.push(shown.map((f) => `- ${f}`).join("\n"));
+    if (files.length > 10) {
+      parts.push(`- ... and ${files.length - 10} more`);
+    }
+  }
+
+  return parts.join("\n");
 }
 
 function truncateDiff(diff: string, maxLen: number): string {

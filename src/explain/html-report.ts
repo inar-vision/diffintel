@@ -1,4 +1,4 @@
-import { ExplainReport, StructuralChange } from "./types";
+import { ExplainReport, StructuralChange, DependencyGraph } from "./types";
 
 function escapeHtml(str: string): string {
   return str
@@ -194,6 +194,52 @@ export function renderReport(report: ExplainReport): string {
   .common-change-item code { font-size: 12px; }
   .common-change-files { font-size: 12px; color: #888; margin-left: 4px; }
 
+  /* Blast radius */
+  .blast-radius {
+    margin-bottom: 24px;
+  }
+  .blast-radius-summary {
+    padding: 14px 16px; border-radius: 6px;
+    font-size: 15px; line-height: 1.7; margin-bottom: 12px;
+  }
+  .blast-radius-contained {
+    background: #f0fdf4; color: #15803d;
+  }
+  .blast-radius-moderate {
+    background: #fffbeb; color: #92400e;
+  }
+  .blast-radius-wide {
+    background: #fef2f2; color: #991b1b;
+  }
+  .blast-radius-reach {
+    display: flex; gap: 16px; margin-bottom: 12px;
+  }
+  .reach-stat {
+    font-size: 13px; color: #777; font-weight: 500;
+  }
+  .reach-stat b { font-size: 16px; margin-right: 3px; }
+  .blast-radius-details summary {
+    font-size: 12px; color: #888; cursor: pointer; user-select: none;
+    padding: 6px 0;
+  }
+  .blast-radius-details summary:hover { color: #555; }
+  .blast-radius-group {
+    margin-bottom: 12px;
+  }
+  .blast-radius-group .group-label {
+    font-size: 12px; font-weight: 600; color: #666;
+    margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .blast-radius-item {
+    padding: 4px 14px; font-size: 13px; color: #555;
+    border-left: 2px solid #f59e0b; margin-bottom: 2px;
+  }
+  .blast-radius-item code { font-size: 12px; }
+  .blast-radius-item .dep-symbols { font-size: 12px; color: #888; }
+  .blast-radius-second-ring .blast-radius-item {
+    border-left-color: #cbd5e1;
+  }
+
   /* File cards */
   .file-card {
     border: 1px solid #e5e7eb; border-radius: 8px;
@@ -294,13 +340,15 @@ export function renderReport(report: ExplainReport): string {
 
   ${explanation.description
     ? `<div class="description">${escapeHtml(explanation.description)}</div>`
-    : `<div class="ast-only-notice">Structural analysis only — set ANTHROPIC_API_KEY for AI-powered explanations.</div>`}
+    : `<div class="ast-only-notice">Structural analysis only — set ANTHROPIC_API_KEY or OPENAI_API_KEY for AI-powered explanations.</div>`}
 
   ${fixesHtml ? `<h2>What was fixed</h2>\n${fixesHtml}` : ""}
 
   ${risksHtml ? `<h2>Things to watch</h2>\n${risksHtml}` : ""}
 
   ${commonChangesHtml}
+
+  ${buildBlastRadiusHtml(report.dependencyGraph, explanation.blastRadiusSummary)}
 
   <h2>Changed files</h2>
   ${fileCards}
@@ -310,6 +358,92 @@ export function renderReport(report: ExplainReport): string {
   </div>
 </body>
 </html>`;
+}
+
+function buildBlastRadiusHtml(graph?: DependencyGraph, summary?: string): string {
+  if (!graph) return "";
+
+  const hasReverse = graph.reverseDeps.length > 0;
+  const hasSecondRing = graph.secondRingDeps.length > 0;
+  const totalAffected = graph.reverseDeps.length + graph.secondRingDeps.length;
+
+  // Determine severity class
+  const severityClass = !hasReverse
+    ? "blast-radius-contained"
+    : totalAffected > 10
+      ? "blast-radius-wide"
+      : "blast-radius-moderate";
+
+  const parts: string[] = [];
+  parts.push(`<h2>Blast radius</h2>`);
+  parts.push(`<div class="blast-radius">`);
+
+  // Plain-language summary (from LLM or fallback)
+  const summaryText = summary
+    || (!hasReverse
+      ? "No other files import the changed files — changes are self-contained."
+      : `${graph.reverseDeps.length} file(s) directly depend on the changed code${hasSecondRing ? `, with ${[...new Set(graph.secondRingDeps.map((e) => e.from))].length} more indirectly affected` : ""}.`);
+  parts.push(`<div class="blast-radius-summary ${severityClass}">${escapeHtml(summaryText)}</div>`);
+
+  // Reach stats
+  if (hasReverse) {
+    const uniqueReverse = [...new Set(graph.reverseDeps.map((e) => e.from))].length;
+    const uniqueSecondRing = [...new Set(graph.secondRingDeps.map((e) => e.from))].length;
+    parts.push(`<div class="blast-radius-reach">`);
+    parts.push(`<div class="reach-stat"><b>${uniqueReverse}</b> direct dependent${uniqueReverse !== 1 ? "s" : ""}</div>`);
+    if (uniqueSecondRing > 0) {
+      parts.push(`<div class="reach-stat"><b>${uniqueSecondRing}</b> indirect</div>`);
+    }
+    parts.push(`<div class="reach-stat"><b>${graph.repoFilesScanned}</b> files scanned</div>`);
+    parts.push(`</div>`);
+  }
+
+  // Technical detail in collapsible
+  if (hasReverse || hasSecondRing) {
+    parts.push(`<details class="blast-radius-details"><summary>View dependency details</summary>`);
+
+    if (hasReverse) {
+      const byTarget = new Map<string, Array<{ from: string; symbols: string[] }>>();
+      for (const edge of graph.reverseDeps) {
+        const list = byTarget.get(edge.to) || [];
+        list.push({ from: edge.from, symbols: edge.symbols });
+        byTarget.set(edge.to, list);
+      }
+
+      parts.push(`<div class="blast-radius-group">`);
+      parts.push(`<div class="group-label">Direct dependents</div>`);
+      for (const [target, importers] of byTarget) {
+        for (const imp of importers) {
+          const symInfo = imp.symbols.length > 0
+            ? ` <span class="dep-symbols">uses: ${imp.symbols.map((s) => escapeHtml(s)).join(", ")}</span>`
+            : "";
+          parts.push(
+            `<div class="blast-radius-item"><code>${escapeHtml(imp.from)}</code> &rarr; <code>${escapeHtml(target)}</code>${symInfo}</div>`,
+          );
+        }
+      }
+      parts.push(`</div>`);
+    }
+
+    if (hasSecondRing) {
+      const files = [...new Set(graph.secondRingDeps.map((e) => e.from))];
+      parts.push(`<div class="blast-radius-group blast-radius-second-ring">`);
+      parts.push(`<div class="group-label">Indirect dependents (${files.length})</div>`);
+      const shown = files.slice(0, 15);
+      for (const f of shown) {
+        parts.push(`<div class="blast-radius-item"><code>${escapeHtml(f)}</code></div>`);
+      }
+      if (files.length > 15) {
+        parts.push(`<div class="blast-radius-item">... and ${files.length - 15} more</div>`);
+      }
+      parts.push(`</div>`);
+    }
+
+    parts.push(`</details>`);
+  }
+
+  parts.push(`</div>`);
+  return parts.join("\n");
 }
 
 function renderDiff(rawDiff: string): string {
