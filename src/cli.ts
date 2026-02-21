@@ -1,5 +1,12 @@
 #!/usr/bin/env node
 
+// Suppress punycode deprecation warning from dependencies
+const _origEmit = process.emitWarning;
+process.emitWarning = ((warning: string | Error, ...args: unknown[]) => {
+  if (typeof warning === "string" && warning.includes("punycode")) return;
+  return (_origEmit as Function).call(process, warning, ...args);
+}) as typeof process.emitWarning;
+
 import { program } from "commander";
 import pkg from "../package.json";
 

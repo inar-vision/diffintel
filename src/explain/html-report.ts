@@ -211,10 +211,21 @@ export function renderReport(report: ExplainReport): string {
   }
   .reach-stat b { font-size: 16px; margin-right: 3px; }
   .blast-radius-details summary {
-    font-size: 13px; color: #1d9bf0; cursor: pointer; user-select: none;
-    padding: 6px 0;
+    font-size: 15px; font-weight: 600; color: #536471;
+    cursor: pointer; user-select: none;
+    padding: 10px 0; list-style: none;
+    display: flex; align-items: center; gap: 6px;
   }
-  .blast-radius-details summary:hover { color: #0a7ccc; }
+  .blast-radius-details summary::-webkit-details-marker { display: none; }
+  .blast-radius-details summary::before {
+    content: "\\25B6"; font-size: 10px; transition: transform 0.15s;
+  }
+  .blast-radius-details[open] summary::before { transform: rotate(90deg); }
+  .blast-radius-details summary .details-hint {
+    font-size: 13px; font-weight: 400; color: #1d9bf0;
+  }
+  .blast-radius-details summary:hover { color: #0f1419; }
+  .blast-radius-details summary:hover .details-hint { color: #0a7ccc; }
   .blast-radius-group {
     margin-bottom: 12px;
   }
@@ -234,7 +245,8 @@ export function renderReport(report: ExplainReport): string {
     background: #f7f9f9; border-radius: 8px; margin-bottom: 4px;
   }
   .blast-radius-item code { font-size: 13px; }
-  .blast-radius-item .dep-symbols { font-size: 13px; color: #536471; }
+  .blast-radius-item .dep-relation { font-size: 13px; color: #536471; }
+  .blast-radius-item .dep-symbols { font-size: 13px; color: #536471; display: block; padding-left: 4px; margin-top: 2px; }
 
   /* File cards */
   .file-card {
@@ -448,7 +460,7 @@ function buildBlastRadiusHtml(graph?: DependencyGraph, summary?: string): string
 
   // Technical detail in collapsible
   if (hasReverse || hasSecondRing) {
-    parts.push(`<details class="blast-radius-details"><summary>View dependency details</summary>`);
+    parts.push(`<details class="blast-radius-details"><summary>Dependency details <span class="details-hint">(show details)</span></summary>`);
 
     if (hasReverse) {
       const byTarget = new Map<string, Array<{ from: string; symbols: string[] }>>();
@@ -463,10 +475,10 @@ function buildBlastRadiusHtml(graph?: DependencyGraph, summary?: string): string
       for (const [target, importers] of byTarget) {
         for (const imp of importers) {
           const symInfo = imp.symbols.length > 0
-            ? ` <span class="dep-symbols">uses: ${imp.symbols.map((s) => escapeHtml(s)).join(", ")}</span>`
+            ? ` <span class="dep-symbols">imports ${imp.symbols.map((s) => `<code>${escapeHtml(s)}</code>`).join(", ")}</span>`
             : "";
           parts.push(
-            `<div class="blast-radius-item"><code>${escapeHtml(imp.from)}</code> &rarr; <code>${escapeHtml(target)}</code>${symInfo}</div>`,
+            `<div class="blast-radius-item"><code>${escapeHtml(imp.from)}</code> <span class="dep-relation">depends on</span> <code>${escapeHtml(target)}</code>${symInfo}</div>`,
           );
         }
       }
