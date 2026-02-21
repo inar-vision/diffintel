@@ -84,243 +84,235 @@ export function renderReport(report: ExplainReport): string {
 <title>${escapeHtml(explanation.title)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    max-width: 740px; margin: 0 auto; padding: 48px 20px;
-    color: #1a1a1a; background: #fff; line-height: 1.7;
+    max-width: 680px; margin: 0 auto; padding: 48px 20px;
+    color: #0f1419; background: #fff; line-height: 1.6;
+    font-size: 15px;
   }
 
   /* Article header */
   .article-header {
-    margin-bottom: 36px;
-    padding-bottom: 28px;
-    border-bottom: 1px solid #eee;
-  }
-  .article-header .label {
-    display: inline-block; font-size: 11px; font-weight: 600;
-    text-transform: uppercase; letter-spacing: 1.5px; color: #3b82f6;
-    margin-bottom: 12px;
+    margin-bottom: 40px;
   }
   h1 {
-    font-family: "Playfair Display", Georgia, "Times New Roman", serif;
-    font-size: 34px; font-weight: 800; line-height: 1.2;
-    margin-bottom: 16px; letter-spacing: -0.5px; color: #111;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 28px; font-weight: 700; line-height: 1.3;
+    margin-bottom: 12px; color: #0f1419;
   }
-  .meta { color: #999; font-size: 13px; font-weight: 400; }
-  .meta span { margin-right: 16px; }
+  .meta { color: #536471; font-size: 14px; font-weight: 400; }
+  .meta span { margin-right: 6px; }
+  .meta span + span::before { content: "\\00B7"; margin-right: 6px; }
 
   /* Stats */
   .stats {
-    display: flex; gap: 20px; margin-bottom: 16px;
+    display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;
   }
   .stat {
-    font-size: 13px; color: #777; font-weight: 500;
+    font-size: 14px; color: #536471; font-weight: 500;
+    background: #f7f9f9; border-radius: 9999px; padding: 4px 14px;
   }
-  .stat b { font-size: 18px; color: #1a1a1a; margin-right: 3px; }
-  .stat.additions b { color: #16a34a; }
-  .stat.deletions b { color: #dc2626; }
+  .stat b { font-size: 17px; color: #0f1419; margin-right: 3px; }
+  .stat.additions b { color: #00ba7c; }
+  .stat.deletions b { color: #f4212e; }
 
   /* Structural summary */
   .structural-summary {
-    font-size: 14px; color: #555; margin-bottom: 8px;
-    padding: 10px 14px; background: #f8fafc; border-radius: 6px;
+    font-size: 14px; color: #536471; margin-bottom: 12px;
+    padding: 12px 16px; background: #f7f9f9; border-radius: 12px;
   }
 
   /* Impact */
   .impact-section {
-    font-size: 14px; color: #555; margin-bottom: 28px;
-    padding: 10px 14px; background: #f8fafc; border-radius: 6px;
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-bottom: 28px;
   }
   .impact-section span {
-    display: inline-block; margin-right: 12px;
-  }
-  .impact-section span::before {
-    content: "\\2022"; margin-right: 5px; color: #94a3b8;
+    display: inline-block; font-size: 13px; color: #536471;
+    background: #f7f9f9; border-radius: 9999px; padding: 4px 14px;
+    line-height: 1.4;
   }
 
   /* Description — article lede */
   .description {
-    font-size: 18px; line-height: 1.85; margin-bottom: 36px;
-    color: #333; font-weight: 400;
+    font-size: 17px; line-height: 1.75; margin-bottom: 36px;
+    color: #0f1419; font-weight: 400;
   }
 
   /* Section headings */
   h2 {
-    font-size: 12px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 1.2px; color: #999; margin: 36px 0 14px;
+    font-size: 15px; font-weight: 600;
+    color: #536471; margin: 36px 0 14px;
   }
 
   /* Fixes */
   .fix-item {
-    padding: 10px 14px; margin-bottom: 8px;
-    background: #f0fdf4; border-left: 3px solid #22c55e;
-    border-radius: 0 6px 6px 0; font-size: 14px; color: #15803d;
+    padding: 12px 16px; margin-bottom: 8px;
+    background: #f0fdf4; border-radius: 12px;
+    font-size: 15px; color: #15803d;
   }
   .fix-icon { margin-right: 6px; font-weight: bold; }
 
   /* Risks */
   .risk-item {
-    padding: 10px 14px; margin-bottom: 8px;
-    border-radius: 0 6px 6px 0; font-size: 14px;
+    padding: 12px 16px; margin-bottom: 8px;
+    border-radius: 12px; font-size: 15px;
   }
   .risk-label {
-    display: inline-block; padding: 1px 8px; border-radius: 3px;
-    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    display: inline-block; padding: 2px 10px; border-radius: 9999px;
+    font-size: 12px; font-weight: 600; text-transform: capitalize;
     margin-right: 8px; color: white;
   }
-  .risk-low { background: #fefce8; border-left: 3px solid #eab308; color: #854d0e; }
+  .risk-low { background: #fefce8; color: #854d0e; }
   .risk-low .risk-label { background: #eab308; }
-  .risk-medium { background: #fff7ed; border-left: 3px solid #f97316; color: #9a3412; }
+  .risk-medium { background: #fff7ed; color: #9a3412; }
   .risk-medium .risk-label { background: #f97316; }
-  .risk-high { background: #fef2f2; border-left: 3px solid #ef4444; color: #991b1b; }
+  .risk-high { background: #fef2f2; color: #991b1b; }
   .risk-high .risk-label { background: #ef4444; }
 
   /* AST-only notice */
   .ast-only-notice {
-    padding: 12px 16px; margin-bottom: 32px;
-    background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 6px;
-    font-size: 14px; color: #64748b;
+    padding: 14px 16px; margin-bottom: 32px;
+    background: #f7f9f9; border: 1px dashed #cfd9de; border-radius: 12px;
+    font-size: 15px; color: #536471;
   }
 
   /* Common changes */
   .common-changes { margin-bottom: 24px; }
   .common-change-item {
-    padding: 6px 14px; font-size: 13px; color: #555;
-    border-left: 2px solid #cbd5e1; margin-bottom: 4px;
+    padding: 8px 16px; font-size: 14px; color: #0f1419;
+    background: #f7f9f9; border-radius: 12px; margin-bottom: 6px;
   }
-  .common-change-item code { font-size: 12px; }
-  .common-change-files { font-size: 12px; color: #888; margin-left: 4px; }
+  .common-change-item code { font-size: 13px; }
+  .common-change-files { font-size: 13px; color: #536471; margin-left: 4px; }
 
   /* Blast radius */
   .blast-radius {
     margin-bottom: 24px;
   }
   .blast-radius-summary {
-    padding: 14px 16px; border-radius: 6px;
-    font-size: 15px; line-height: 1.7; margin-bottom: 12px;
-  }
-  .blast-radius-contained {
-    background: #f0fdf4; color: #15803d;
-  }
-  .blast-radius-moderate {
-    background: #fffbeb; color: #92400e;
-  }
-  .blast-radius-wide {
-    background: #fef2f2; color: #991b1b;
+    padding: 14px 16px; border-radius: 12px;
+    font-size: 15px; line-height: 1.6; margin-bottom: 12px;
+    background: #f7f9f9; color: #0f1419;
   }
   .blast-radius-reach {
-    display: flex; gap: 16px; margin-bottom: 12px;
+    display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;
   }
   .reach-stat {
-    font-size: 13px; color: #777; font-weight: 500;
+    font-size: 14px; color: #536471; font-weight: 500;
+    background: #f7f9f9; border-radius: 9999px; padding: 4px 14px;
   }
   .reach-stat b { font-size: 16px; margin-right: 3px; }
   .blast-radius-details summary {
-    font-size: 12px; color: #888; cursor: pointer; user-select: none;
+    font-size: 13px; color: #1d9bf0; cursor: pointer; user-select: none;
     padding: 6px 0;
   }
-  .blast-radius-details summary:hover { color: #555; }
+  .blast-radius-details summary:hover { color: #0a7ccc; }
   .blast-radius-group {
     margin-bottom: 12px;
   }
   .blast-radius-group .group-label {
-    font-size: 12px; font-weight: 600; color: #666;
-    margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;
+    font-size: 13px; font-weight: 600; color: #536471;
+    margin-bottom: 6px;
   }
+  .blast-radius-label {
+    display: inline-block; padding: 2px 10px; border-radius: 9999px;
+    font-size: 12px; font-weight: 600; margin-right: 6px; color: white;
+  }
+  .blast-radius-label-contained { background: #536471; }
+  .blast-radius-label-moderate { background: #ffad1f; }
+  .blast-radius-label-wide { background: #f4212e; }
   .blast-radius-item {
-    padding: 4px 14px; font-size: 13px; color: #555;
-    border-left: 2px solid #f59e0b; margin-bottom: 2px;
+    padding: 6px 16px; font-size: 14px; color: #0f1419;
+    background: #f7f9f9; border-radius: 8px; margin-bottom: 4px;
   }
-  .blast-radius-item code { font-size: 12px; }
-  .blast-radius-item .dep-symbols { font-size: 12px; color: #888; }
-  .blast-radius-second-ring .blast-radius-item {
-    border-left-color: #cbd5e1;
-  }
+  .blast-radius-item code { font-size: 13px; }
+  .blast-radius-item .dep-symbols { font-size: 13px; color: #536471; }
 
   /* File cards */
   .file-card {
-    border: 1px solid #e5e7eb; border-radius: 8px;
-    margin-bottom: 16px; overflow: hidden;
+    border-radius: 12px; margin-bottom: 16px; overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06);
+    background: #fff;
   }
   .file-header {
-    padding: 10px 14px; background: #fafafa;
-    border-bottom: 1px solid #f0f0f0;
+    padding: 12px 16px;
+    border-bottom: 1px solid #eff3f4;
     display: flex; align-items: center; gap: 10px;
   }
-  .file-path { font-family: "SF Mono", Menlo, monospace; font-size: 13px; }
+  .file-path { font-family: "SF Mono", Menlo, monospace; font-size: 13px; color: #0f1419; }
   .file-status {
-    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    display: inline-block; padding: 2px 10px; border-radius: 9999px;
     font-size: 11px; font-weight: 600; text-transform: uppercase; color: white;
   }
-  .status-added { background: #22c55e; }
-  .status-modified { background: #3b82f6; }
-  .status-deleted { background: #ef4444; }
-  .status-renamed { background: #8b5cf6; }
+  .status-added { background: #00ba7c; }
+  .status-modified { background: #1d9bf0; }
+  .status-deleted { background: #f4212e; }
+  .status-renamed { background: #7856ff; }
 
   .file-summary {
-    padding: 12px 14px; font-size: 14px; color: #444;
-    border-bottom: 1px solid #f5f5f5; font-weight: bold
+    padding: 12px 16px; font-size: 15px; color: #0f1419;
+    border-bottom: 1px solid #eff3f4; font-weight: 600;
   }
   .file-notes {
-    padding: 10px 14px; background: #fafbff;
-    border-bottom: 1px solid #f0f0f0;
+    padding: 12px 16px;
+    border-bottom: 1px solid #eff3f4;
   }
   .file-notes-label {
-    font-size: 11px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.8px; color: #7c8db0; margin-bottom: 6px;
+    font-size: 13px; font-weight: 600;
+    color: #536471; margin-bottom: 6px;
   }
   .file-notes ul {
     margin: 0; padding-left: 18px;
   }
   .file-notes li {
-    font-size: 13px; color: #555; line-height: 1.6; margin-bottom: 2px;
+    font-size: 14px; color: #0f1419; line-height: 1.6; margin-bottom: 2px;
   }
 
   .changes-list {
-    padding: 10px 14px; font-size: 13px; line-height: 2;
+    padding: 12px 16px; font-size: 14px; line-height: 2;
   }
   .change-badge {
-    display: inline-block; padding: 1px 6px; border-radius: 3px;
+    display: inline-block; padding: 2px 8px; border-radius: 9999px;
     font-size: 11px; font-weight: 600; color: white; margin-right: 4px;
   }
-  .action-added { background: #22c55e; }
-  .action-removed { background: #ef4444; }
-  .action-modified { background: #f59e0b; }
-  .change-type { color: #999; font-size: 12px; }
-  code { font-family: "SF Mono", Menlo, monospace; font-size: 12px; }
+  .action-added { background: #00ba7c; }
+  .action-removed { background: #f4212e; }
+  .action-modified { background: #ffad1f; }
+  .change-type { color: #536471; font-size: 13px; }
+  code { font-family: "SF Mono", Menlo, monospace; font-size: 13px; }
 
   /* Diff */
   .diff-toggle { margin: 0; }
   .diff-toggle summary {
-    padding: 8px 14px; cursor: pointer; font-size: 12px;
-    color: #888; user-select: none; border-top: 1px solid #f0f0f0;
+    padding: 10px 16px; cursor: pointer; font-size: 13px;
+    color: #1d9bf0; user-select: none; border-top: 1px solid #eff3f4;
   }
-  .diff-toggle summary:hover { color: #555; }
+  .diff-toggle summary:hover { color: #0a7ccc; }
   .diff-block {
-    background: #1e1e1e; color: #d4d4d4; padding: 14px;
-    overflow-x: auto; font-size: 12px; line-height: 1.6;
+    background: #1e1e1e; color: #d4d4d4; padding: 16px;
+    overflow-x: auto; font-size: 13px; line-height: 1.6;
     font-family: "SF Mono", Menlo, monospace;
-    margin: 0; border-radius: 0;
+    margin: 0; border-radius: 0 0 8px 8px;
   }
   .diff-truncation {
-    padding: 6px 14px; font-size: 12px; color: #888;
+    padding: 8px 16px; font-size: 13px; color: #888;
     border-top: 1px solid #333; background: #252525;
   }
-  .diff-show-full { cursor: pointer; color: #60a5fa; text-decoration: underline; background: none; border: none; font-size: 12px; }
+  .diff-show-full { cursor: pointer; color: #1d9bf0; text-decoration: underline; background: none; border: none; font-size: 13px; }
 
   /* Footer */
   .footer {
-    margin-top: 36px; padding-top: 14px; border-top: 1px solid #eee;
-    color: #bbb; font-size: 11px;
+    margin-top: 40px;
+    color: #536471; font-size: 13px;
   }
 </style>
 </head>
 <body>
   <div class="article-header">
-    <div class="label">Change Report</div>
     <h1>${escapeHtml(explanation.title)}</h1>
     <div class="meta">
       <span>${escapeHtml(report.baseRef)} &rarr; ${escapeHtml(report.headRef)}</span>
@@ -342,13 +334,13 @@ export function renderReport(report: ExplainReport): string {
     ? `<div class="description">${escapeHtml(explanation.description)}</div>`
     : `<div class="ast-only-notice">Structural analysis only — set ANTHROPIC_API_KEY or OPENAI_API_KEY for AI-powered explanations.</div>`}
 
+  ${buildBlastRadiusHtml(report.dependencyGraph, explanation.blastRadiusSummary)}
+
   ${fixesHtml ? `<h2>What was fixed</h2>\n${fixesHtml}` : ""}
 
   ${risksHtml ? `<h2>Things to watch</h2>\n${risksHtml}` : ""}
 
   ${commonChangesHtml}
-
-  ${buildBlastRadiusHtml(report.dependencyGraph, explanation.blastRadiusSummary)}
 
   <h2>Changed files</h2>
   ${fileCards}
@@ -367,12 +359,12 @@ function buildBlastRadiusHtml(graph?: DependencyGraph, summary?: string): string
   const hasSecondRing = graph.secondRingDeps.length > 0;
   const totalAffected = graph.reverseDeps.length + graph.secondRingDeps.length;
 
-  // Determine severity class
-  const severityClass = !hasReverse
-    ? "blast-radius-contained"
+  // Determine severity level
+  const severityLevel = !hasReverse
+    ? "contained"
     : totalAffected > 10
-      ? "blast-radius-wide"
-      : "blast-radius-moderate";
+      ? "wide"
+      : "moderate";
 
   const parts: string[] = [];
   parts.push(`<h2>Blast radius</h2>`);
@@ -383,7 +375,7 @@ function buildBlastRadiusHtml(graph?: DependencyGraph, summary?: string): string
     || (!hasReverse
       ? "No other files import the changed files — changes are self-contained."
       : `${graph.reverseDeps.length} file(s) directly depend on the changed code${hasSecondRing ? `, with ${[...new Set(graph.secondRingDeps.map((e) => e.from))].length} more indirectly affected` : ""}.`);
-  parts.push(`<div class="blast-radius-summary ${severityClass}">${escapeHtml(summaryText)}</div>`);
+  parts.push(`<div class="blast-radius-summary"><span class="blast-radius-label blast-radius-label-${severityLevel}">${severityLevel}</span> ${escapeHtml(summaryText)}</div>`);
 
   // Reach stats
   if (hasReverse) {
