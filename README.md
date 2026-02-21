@@ -32,12 +32,14 @@ npm install -g diffintel
 diffintel explain --base main
 ```
 
-With AI explanations (either provider works):
+With AI explanations (any provider works):
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...    # for Claude
+export ANTHROPIC_API_KEY=sk-ant-...    # for Claude (direct)
 # or
 export OPENAI_API_KEY=sk-...           # for GPT
+# or
+export OPENROUTER_API_KEY=sk-or-...    # for OpenRouter (any model)
 npx diffintel explain --base main
 ```
 
@@ -67,10 +69,11 @@ diffintel is configured via environment variables. You can set them directly or 
 
 | Variable | Required | Description |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | For AI mode | Anthropic API key. Provide this or `OPENAI_API_KEY` for AI explanations. |
+| `ANTHROPIC_API_KEY` | For AI mode | Anthropic API key. Provide this or any other API key for AI explanations. |
 | `OPENAI_API_KEY` | For AI mode | OpenAI API key. Alternative to `ANTHROPIC_API_KEY`. |
-| `DIFFINTEL_PROVIDER` | No | Force `anthropic` or `openai` when both keys are set. Default: `anthropic`. |
-| `DIFFINTEL_MODEL` | No | Override the LLM model. Default: `claude-sonnet-4-5-20250929` (Anthropic) or `gpt-4o` (OpenAI). |
+| `OPENROUTER_API_KEY` | For AI mode | OpenRouter API key. Routes through [OpenRouter](https://openrouter.ai) (OpenAI-compatible). |
+| `DIFFINTEL_PROVIDER` | No | Force `anthropic`, `openai`, or `openrouter` when multiple keys are set. Default: auto-detect (Anthropic > OpenAI > OpenRouter). |
+| `DIFFINTEL_MODEL` | No | Override the LLM model. Default: `claude-sonnet-4-5-20250929` (Anthropic), `gpt-4o` (OpenAI), or `anthropic/claude-sonnet-4` (OpenRouter). |
 
 ## What the report includes
 
@@ -124,7 +127,7 @@ Scaffold the workflow file automatically:
 diffintel init
 ```
 
-This creates `.github/workflows/diffintel.yml` with the configuration below. You just need to add `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` to your repo secrets.
+This creates `.github/workflows/diffintel.yml` with the configuration below. You just need to add `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or `OPENROUTER_API_KEY` to your repo secrets.
 
 ## GitHub Action
 
@@ -157,6 +160,7 @@ jobs:
           # Provide ONE of these API keys:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           # OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          # OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           # Uncomment to override the default model:
           # DIFFINTEL_MODEL: claude-haiku-4-5-20251001
         run: diffintel explain --base origin/${{ github.base_ref }}
