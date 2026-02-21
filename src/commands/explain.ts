@@ -4,7 +4,8 @@ import { analyzeFile } from "../explain/ast-diff";
 import { explainChanges } from "../explain/llm-explain";
 import { renderReport } from "../explain/html-report";
 import { renderMarkdownSummary } from "../explain/markdown-summary";
-import { ExplainReport, LLMExplanation } from "../explain/types";
+import { ExplainReport, LLMExplanation, DependencyGraph } from "../explain/types";
+import { buildDependencyGraph, resetRepoFilesCache } from "../explain/dependency-graph";
 
 interface ExplainOptions {
   base?: string;
@@ -41,11 +42,26 @@ export async function run(opts: ExplainOptions): Promise<number> {
     const totalAdditions = fileDiffs.reduce((sum, f) => sum + f.additions, 0);
     const totalDeletions = fileDiffs.reduce((sum, f) => sum + f.deletions, 0);
 
+    // Build dependency graph (blast radius analysis)
+    console.error("Scanning dependency graph...");
+    resetRepoFilesCache();
+    const dependencyGraph = buildDependencyGraph(
+      fileDiffs.map((fd) => fd.path),
+      opts.head,
+    );
+    const depCount = dependencyGraph.reverseDeps.length + dependencyGraph.secondRingDeps.length;
+    console.error(
+      `Dependency scan: ${dependencyGraph.forwardDeps.length} forward, ` +
+      `${dependencyGraph.reverseDeps.length} reverse, ` +
+      `${dependencyGraph.secondRingDeps.length} second-ring deps ` +
+      `(${dependencyGraph.repoFilesScanned} files scanned in ${dependencyGraph.scanTimeMs}ms)`,
+    );
+
     let explanation: LLMExplanation;
 
     if (hasApiKey) {
       console.error(`Detected ${totalChanges} structural change(s). Calling LLM...`);
-      explanation = await explainChanges(fileAnalyses, rawDiff);
+      explanation = await explainChanges(fileAnalyses, rawDiff, dependencyGraph);
     } else {
       console.error(`Detected ${totalChanges} structural change(s). No API key — generating AST-only report.`);
       explanation = {
@@ -55,6 +71,7 @@ export async function run(opts: ExplainOptions): Promise<number> {
         fixes: [],
         risks: [],
         fileExplanations: [],
+        blastRadiusSummary: "",
         tokenUsage: { input: 0, output: 0 },
       };
     }
@@ -70,6 +87,7 @@ export async function run(opts: ExplainOptions): Promise<number> {
       },
       explanation,
       files: fileAnalyses,
+      dependencyGraph,
     };
 
     const html = renderReport(report);

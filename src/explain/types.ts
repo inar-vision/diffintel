@@ -71,7 +71,32 @@ export interface LLMExplanation {
   fixes: Fix[];
   risks: Risk[];
   fileExplanations: FileExplanation[];
+  blastRadiusSummary: string;
   tokenUsage: { input: number; output: number };
+}
+
+export interface DependencyEdge {
+  /** The file that contains the import */
+  from: string;
+  /** The file being imported */
+  to: string;
+  /** The raw import specifier as written in source */
+  specifier: string;
+  /** Specific symbols imported, if detectable (e.g. named imports) */
+  symbols: string[];
+}
+
+export interface DependencyGraph {
+  /** Files that changed files import (what do we depend on?) */
+  forwardDeps: DependencyEdge[];
+  /** Unchanged files that import changed files (what might break?) */
+  reverseDeps: DependencyEdge[];
+  /** Second-ring: files that import the reverse deps (wider blast radius) */
+  secondRingDeps: DependencyEdge[];
+  /** Total repo files scanned for reverse deps */
+  repoFilesScanned: number;
+  /** Time taken in ms */
+  scanTimeMs: number;
 }
 
 export interface ExplainReport {
@@ -85,4 +110,5 @@ export interface ExplainReport {
   };
   explanation: LLMExplanation;
   files: FileAnalysis[];
+  dependencyGraph?: DependencyGraph;
 }

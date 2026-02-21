@@ -3,6 +3,7 @@ node_modules/
 .claude/
 dist/
 *.tgz
+.DS_Store
 
 # Generated reports
 explain-report.*

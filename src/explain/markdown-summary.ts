@@ -30,7 +30,7 @@ export function renderMarkdownSummary(report: ExplainReport): string {
     parts.push(explanation.description);
     parts.push("");
   } else {
-    parts.push("_Structural analysis only — set `ANTHROPIC_API_KEY` for AI-powered explanations._");
+    parts.push("_Structural analysis only — set `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` for AI-powered explanations._");
     parts.push("");
 
     // In AST-only mode, show structural changes as the primary content
@@ -57,6 +57,50 @@ export function renderMarkdownSummary(report: ExplainReport): string {
       parts.push(`- **${risk.level}** ${risk.description}`);
     }
     parts.push("");
+  }
+
+  // Blast radius
+  if (report.dependencyGraph || explanation.blastRadiusSummary) {
+    parts.push("**Blast radius**");
+
+    const graph = report.dependencyGraph;
+    const reverseDeps = graph?.reverseDeps || [];
+    const secondRingDeps = graph?.secondRingDeps || [];
+    const hasDeps = reverseDeps.length > 0;
+
+    // Plain-language summary first
+    if (explanation.blastRadiusSummary) {
+      parts.push(explanation.blastRadiusSummary);
+    } else if (!hasDeps) {
+      parts.push("Changes are self-contained — no other files depend on the modified code.");
+    } else {
+      const uniqueReverse = [...new Set(reverseDeps.map((e) => e.from))].length;
+      parts.push(`${uniqueReverse} file(s) directly depend on the changed code.`);
+    }
+    parts.push("");
+
+    // Technical details in collapsible
+    if (hasDeps) {
+      parts.push("<details>");
+      parts.push("<summary>Dependency details</summary>");
+      parts.push("");
+      const byTarget = new Map<string, string[]>();
+      for (const edge of reverseDeps) {
+        const list = byTarget.get(edge.to) || [];
+        list.push(edge.from);
+        byTarget.set(edge.to, list);
+      }
+      for (const [target, importers] of byTarget) {
+        parts.push(`- \`${target}\` is imported by ${importers.length} file(s): ${importers.slice(0, 5).map((f) => `\`${f}\``).join(", ")}${importers.length > 5 ? ` and ${importers.length - 5} more` : ""}`);
+      }
+      if (secondRingDeps.length > 0) {
+        const secondRingFiles = [...new Set(secondRingDeps.map((e) => e.from))];
+        parts.push(`- ${secondRingFiles.length} additional file(s) indirectly affected`);
+      }
+      parts.push("");
+      parts.push("</details>");
+      parts.push("");
+    }
   }
 
   // Per-file summaries (only when LLM explanations are present)
