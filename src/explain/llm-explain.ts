@@ -2,19 +2,15 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { FileAnalysis, LLMExplanation, Fix, Risk, FileExplanation, DependencyGraph } from "./types";
 
-type Provider = "anthropic" | "openai";
+type Provider = "anthropic" | "openai" | "openrouter";
 
 function detectProvider(): Provider | null {
-  const hasAnthropic = !!process.env.ANTHROPIC_API_KEY;
-  const hasOpenAI = !!process.env.OPENAI_API_KEY;
+  const forced = process.env.DIFFINTEL_PROVIDER?.toLowerCase();
+  if (forced === "openai" || forced === "openrouter" || forced === "anthropic") return forced;
 
-  if (hasAnthropic && hasOpenAI) {
-    const forced = process.env.DIFFINTEL_PROVIDER?.toLowerCase();
-    if (forced === "openai") return "openai";
-    return "anthropic"; // default when both present
-  }
-  if (hasAnthropic) return "anthropic";
-  if (hasOpenAI) return "openai";
+  if (process.env.ANTHROPIC_API_KEY) return "anthropic";
+  if (process.env.OPENAI_API_KEY) return "openai";
+  if (process.env.OPENROUTER_API_KEY) return "openrouter";
   return null;
 }
 
@@ -24,10 +20,15 @@ async function callLLM(
 ): Promise<{ text: string; tokenUsage: { input: number; output: number } }> {
   const provider = detectProvider();
 
-  if (provider === "openai") {
-    const openai = new OpenAI();
+  if (provider === "openai" || provider === "openrouter") {
+    const defaultModel = provider === "openrouter" ? "anthropic/claude-sonnet-4" : "gpt-4o";
+    const openai = new OpenAI(
+      provider === "openrouter"
+        ? { baseURL: "https://openrouter.ai/api/v1", apiKey: process.env.OPENROUTER_API_KEY }
+        : undefined,
+    );
     const completion = await openai.chat.completions.create({
-      model: process.env.DIFFINTEL_MODEL || "gpt-4o",
+      model: process.env.DIFFINTEL_MODEL || defaultModel,
       temperature: 0,
       response_format: { type: "json_object" },
       messages: [
