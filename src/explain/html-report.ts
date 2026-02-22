@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import { ExplainReport, StructuralChange, DependencyGraph } from "./types";
 
 function escapeHtml(str: string): string {
@@ -5,13 +6,15 @@ function escapeHtml(str: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 const MAX_DIFF_LINES = 80;
 
 export function renderReport(report: ExplainReport): string {
   const { explanation, summary, files } = report;
+  const nonce = crypto.randomBytes(16).toString("base64");
 
   // --- Structural summary ---
   const structuralSummaryHtml = buildStructuralSummary(files);
@@ -33,8 +36,8 @@ export function renderReport(report: ExplainReport): string {
   // --- Risks section ---
   const risksHtml = explanation.risks.length > 0
     ? explanation.risks.map((r) => {
-        const cls = `risk-${r.level}`;
-        return `<div class="risk-item ${cls}"><span class="risk-label">${r.level}</span> ${escapeHtml(r.description)}</div>`;
+        const cls = `risk-${escapeHtml(r.level)}`;
+        return `<div class="risk-item ${cls}"><span class="risk-label">${escapeHtml(r.level)}</span> ${escapeHtml(r.description)}</div>`;
       }).join("\n")
     : "";
 
@@ -52,8 +55,8 @@ export function renderReport(report: ExplainReport): string {
 
     const changesHtml = f.structuralChanges.length > 0
       ? `<div class="changes-list">${f.structuralChanges.map((c) => {
-          const cls = `action-${c.action}`;
-          return `<span class="change-badge ${cls}">${c.action}</span> <code>${escapeHtml(c.name)}</code> <span class="change-type">${c.type}</span>`;
+          const cls = `action-${escapeHtml(c.action)}`;
+          return `<span class="change-badge ${cls}">${escapeHtml(c.action)}</span> <code>${escapeHtml(c.name)}</code> <span class="change-type">${escapeHtml(c.type)}</span>`;
         }).join('<br>')}</div>`
       : "";
 
@@ -65,7 +68,7 @@ export function renderReport(report: ExplainReport): string {
 
     return `<div class="file-card">
       <div class="file-header">
-        <span class="file-status status-${f.status}">${f.status}</span>
+        <span class="file-status status-${escapeHtml(f.status)}">${escapeHtml(f.status)}</span>
         <span class="file-path">${escapeHtml(f.path)}</span>
       </div>
       ${feData?.summary ? `<p class="file-summary">${escapeHtml(feData.summary)}</p>` : ""}
@@ -85,11 +88,12 @@ export function renderReport(report: ExplainReport): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; script-src 'nonce-${nonce}';">
 <title>${escapeHtml(explanation.title)}</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
+<style nonce="${nonce}">
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -393,7 +397,7 @@ export function renderReport(report: ExplainReport): string {
     </div>
   </div>
 
-  <script>
+  <script nonce="${nonce}">
     (function() {
       var views = document.querySelectorAll('.view');
       var btns = document.querySelectorAll('.view-btn');
@@ -413,6 +417,15 @@ export function renderReport(report: ExplainReport): string {
         var current = viewNames.indexOf(document.querySelector('.view.active').dataset.view);
         if (e.key === 'ArrowRight' && current < viewNames.length - 1) showView(viewNames[current + 1]);
         if (e.key === 'ArrowLeft' && current > 0) showView(viewNames[current - 1]);
+      });
+
+      document.addEventListener('click', function(e) {
+        if (!e.target.classList.contains('diff-show-full')) return;
+        var diffId = e.target.dataset.diffId;
+        if (!diffId) return;
+        document.getElementById(diffId + '-short').style.display = 'none';
+        document.getElementById(diffId + '-full').style.display = 'block';
+        e.target.parentElement.style.display = 'none';
       });
     })();
   </script>
@@ -443,7 +456,7 @@ function buildBlastRadiusHtml(graph?: DependencyGraph, summary?: string): string
     || (!hasReverse
       ? "No other files import the changed files — changes are self-contained."
       : `${graph.reverseDeps.length} file(s) directly depend on the changed code${hasSecondRing ? `, with ${[...new Set(graph.secondRingDeps.map((e) => e.from))].length} more indirectly affected` : ""}.`);
-  parts.push(`<div class="blast-radius-summary"><span class="blast-radius-label blast-radius-label-${severityLevel}">${severityLevel}</span> ${escapeHtml(summaryText)}</div>`);
+  parts.push(`<div class="blast-radius-summary"><span class="blast-radius-label blast-radius-label-${escapeHtml(severityLevel)}">${escapeHtml(severityLevel)}</span> ${escapeHtml(summaryText)}</div>`);
 
   // Reach stats
   if (hasReverse) {
@@ -526,7 +539,7 @@ function buildBlastRadiusSummaryOnly(graph?: DependencyGraph, summary?: string):
 
   return `<h2>Blast radius</h2>
 <div class="blast-radius">
-<div class="blast-radius-summary"><span class="blast-radius-label blast-radius-label-${severityLevel}">${severityLevel}</span> ${escapeHtml(summaryText)}</div>
+<div class="blast-radius-summary"><span class="blast-radius-label blast-radius-label-${escapeHtml(severityLevel)}">${escapeHtml(severityLevel)}</span> ${escapeHtml(summaryText)}</div>
 </div>`;
 }
 
@@ -541,7 +554,7 @@ function renderDiff(rawDiff: string): string {
   const truncated = lines.slice(0, MAX_DIFF_LINES).join("\n");
   const id = `diff-${Math.random().toString(36).slice(2, 8)}`;
 
-  return `<details class="diff-toggle"><summary>View diff</summary><pre class="diff-block" id="${id}-short">${colorDiff(truncated)}</pre><div class="diff-truncation" id="${id}-notice">Showing ${MAX_DIFF_LINES} of ${totalLines} lines <button class="diff-show-full" onclick="document.getElementById('${id}-short').style.display='none';document.getElementById('${id}-full').style.display='block';this.parentElement.style.display='none';">Show all</button></div><pre class="diff-block" id="${id}-full" style="display:none">${colorDiff(rawDiff)}</pre></details>`;
+  return `<details class="diff-toggle"><summary>View diff</summary><pre class="diff-block" id="${id}-short">${colorDiff(truncated)}</pre><div class="diff-truncation" id="${id}-notice">Showing ${MAX_DIFF_LINES} of ${totalLines} lines <button class="diff-show-full" data-diff-id="${id}">Show all</button></div><pre class="diff-block" id="${id}-full" style="display:none">${colorDiff(rawDiff)}</pre></details>`;
 }
 
 function buildStructuralSummary(files: ExplainReport["files"]): string {
@@ -564,7 +577,7 @@ function buildStructuralSummary(files: ExplainReport["files"]): string {
     for (const [key, count] of counts) {
       if (key.startsWith(action + ":")) {
         const type = key.split(":")[1];
-        items.push(`${count} ${type}${count !== 1 ? "s" : ""}`);
+        items.push(`${count} ${escapeHtml(type)}${count !== 1 ? "s" : ""}`);
       }
     }
     if (items.length > 0) {
@@ -604,7 +617,7 @@ function buildCommonChanges(files: ExplainReport["files"]): string {
     const { change, filePaths } = g;
     const actionSymbol = change.action === "added" ? "+" : change.action === "removed" ? "-" : "~";
     const fileList = filePaths.map((p) => `<code>${escapeHtml(p)}</code>`).join(", ");
-    return `<div class="common-change-item">${actionSymbol} <code>${escapeHtml(change.name)}</code> (${change.type})<span class="common-change-files"> in ${fileList}</span></div>`;
+    return `<div class="common-change-item">${actionSymbol} <code>${escapeHtml(change.name)}</code> (${escapeHtml(change.type)})<span class="common-change-files"> in ${fileList}</span></div>`;
   }).join("\n");
 
   return `<h2>Common changes</h2>\n${items}`;
